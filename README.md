@@ -39,7 +39,7 @@ npx skills add peterfriese/Stratos@stratos-swift
 ### Luca
 
 ```bash
-luca skills add peterfriese/Stratos
+luca install peterfriese/Stratos
 ```
 
 ## Philosophy
