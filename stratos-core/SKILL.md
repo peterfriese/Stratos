@@ -269,3 +269,8 @@ Activate stratos-core when:
 
 - [stratos-swiftui](../stratos-swiftui/SKILL.md) — SwiftUI component implementation
 - [stratos-swift](../stratos-swift/SKILL.md) — Swift library implementation
+
+## Further Reading
+
+- [On Progressive Disclosure in Swift](https://www.youtube.com/watch?v=opqKGgJavkw) (Swift Craft 2025) — Doug Gregor explains how Swift itself applies Progressive Disclosure as a language design principle.
+- [The craft of SwiftUI API design: Progressive disclosure](https://developer.apple.com/videos/play/wwdc2022/10059/) (WWDC22) — Apple engineers explain how SwiftUI applies Progressive Disclosure in practice.

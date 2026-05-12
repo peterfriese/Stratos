@@ -398,3 +398,7 @@ See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for cor
 - [stratos-core](../stratos-core/SKILL.md) — Core methodology
 - [references/LAYERS.md](references/LAYERS.md) — Detailed layer implementation
 - [stratos-swiftui](../stratos-swiftui/SKILL.md) — SwiftUI implementation
+
+## Further Reading
+
+- [On Progressive Disclosure in Swift](https://www.youtube.com/watch?v=opqKGgJavkw) (Swift Craft 2025) — Doug Gregor explains how Swift applies Progressive Disclosure to language design, including Typed Throws, Non-Copyable Types, and concurrency evolution.

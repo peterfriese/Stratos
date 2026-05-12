@@ -13,8 +13,7 @@ stratos-*/
 ├── SKILL.md              # Required: skill definition (~250-350 lines)
 ├── references/           # Optional: detailed technical guidance
 │   └── LAYERS.md         # One level deep only
-├── scripts/              # Optional: executable scripts
-└── assets/               # Optional: templates, resources
+└── scripts/              # Optional: executable scripts
 ```
 
 ### Naming Rules

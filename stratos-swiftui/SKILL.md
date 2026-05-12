@@ -131,7 +131,7 @@ struct ProfileView: View {
 
 ---
 
-### Pattern 2: The Modifier Chain
+### Pattern 3: The Modifier Chain
 
 ```swift
 // CALL SITE:
@@ -160,7 +160,7 @@ enum TextWeight {
 
 **Guideline**: Each modifier should be independently useful. Avoid creating chains that must always be used together.
 
-### Pattern 3: EnvironmentKey for Themes
+### Pattern 4: EnvironmentKey for Themes
 
 ```swift
 // CALL SITE:
@@ -201,48 +201,7 @@ extension View {
 
 ---
 
-### Pattern 3: EnvironmentKey for Themes
-
-```swift
-// CALL SITE:
-MyApp()
-    .theme(.dark)
-
-struct MyView: View {
-    @Environment(\.theme) var theme
-}
-
-// IMPLEMENTATION:
-struct Theme: Equatable {
-    var primaryColor: Color
-    var backgroundColor: Color
-    // ...
-}
-
-struct ThemeKey: EnvironmentKey {
-    static let defaultValue = Theme.light
-}
-
-extension EnvironmentValues {
-    var theme: Theme {
-        get { self[ThemeKey.self] }
-        set { self[ThemeKey.self] = newValue }
-    }
-}
-
-// Convenience modifier:
-extension View {
-    func theme(_ theme: Theme) -> some View {
-        environment(\.theme, theme)
-    }
-}
-```
-
-**Guideline**: Use EnvironmentKeys for truly hierarchical concerns (themes, localization, feature flags). Don't use Environment to bypass proper dependency injection.
-
----
-
-### Pattern 4: Style Protocols for Deep Customization
+### Pattern 5: Style Protocols for Deep Customization
 
 ```swift
 // CALL SITE:
@@ -271,7 +230,7 @@ struct MyCustomButtonStyle: ButtonStyle {
 
 ---
 
-### Pattern 5: Preview Usage
+### Pattern 6: Preview Usage
 
 ```swift
 // CALL SITE (in preview file):
@@ -293,7 +252,7 @@ struct MyCustomButtonStyle: ButtonStyle {
 
 ---
 
-### Pattern 6: Accessibility Considerations
+### Pattern 7: Accessibility Considerations
 
 ```swift
 // CALL SITE:
@@ -355,3 +314,7 @@ See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for det
 - [stratos-core](../stratos-core/SKILL.md) — Core methodology
 - [references/LAYERS.md](references/LAYERS.md) — Detailed layer implementation
 - [stratos-swift](../stratos-swift/SKILL.md) — Swift library implementation
+
+## Further Reading
+
+- [The craft of SwiftUI API design: Progressive disclosure](https://developer.apple.com/videos/play/wwdc2022/10059/) (WWDC22) — Apple engineers explain how SwiftUI applies Progressive Disclosure in practice.

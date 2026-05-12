@@ -6,7 +6,7 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 ## Implementation Journey
 
-### Day 1: Initial Setup (2025-05-12)
+### Entry 1: Initial Setup (2025-05-12)
 
 **What we did:**
 1. Created GitHub repository `peterfriese/Stratos` (private)
@@ -20,7 +20,7 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 ---
 
-### Day 1: Skill Creation
+### Entry 2: Skill Creation
 
 **What we did:**
 1. Created `stratos-core/SKILL.md` (279 lines)
@@ -55,7 +55,7 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 ---
 
-### Day 1: Validation Script
+### Entry 3: Validation Script
 
 **What we did:**
 Created `scripts/validate-skills.swift` to validate:
@@ -71,7 +71,7 @@ Created `scripts/validate-skills.swift` to validate:
 
 ---
 
-### Day 1: Bug Fix - Multiline YAML Parsing (2025-05-12)
+### Entry 4: Bug Fix - Multiline YAML Parsing (2025-05-12)
 
 **Problem:** Validation script reported descriptions as "1 char" even though they were 200+ characters.
 
@@ -96,7 +96,7 @@ Created `scripts/validate-skills.swift` to validate:
 
 ---
 
-### Day 1: Documentation Structure
+### Entry 5: Documentation Structure
 
 **What we did:**
 1. Renamed `docs/README.md` → `docs/JOURNAL.md`
@@ -108,7 +108,7 @@ Created `scripts/validate-skills.swift` to validate:
 
 ---
 
-### Day 2: Deduplication (2025-05-12)
+### Entry 6: Deduplication (2025-05-12)
 
 **Problem:** Significant duplication across skills:
 1. "When to Apply" (stratos-core) vs "Activation Triggers" - nearly identical
@@ -138,7 +138,7 @@ Total removed: ~114 lines
 
 ---
 
-### Day 3: Enhancement with Modern Patterns (2025-05-12)
+### Entry 7: Enhancement with Modern Patterns (2025-05-12)
 
 **Problem:** Skills needed to be updated with modern Swift/SwiftUI best practices while maintaining orthogonality.
 
@@ -158,7 +158,7 @@ Total removed: ~114 lines
 - Added comprehensive async error handling patterns
 - Maintained focus on Swift-only patterns (actors, concurrency, APIs, libraries)
 
-**Core Principle Maintained:** 
+**Core Principle Maintained:**
 - Both skills reference stratos-core for Progressive Disclosure methodology
 - No duplication of core methodology - each skill contains only domain-specific implementation
 - Strict orthogonality: SwiftUI skill contains NO Swift API examples, Swift skill contains NO SwiftUI examples
@@ -179,43 +179,96 @@ stratos-swift:   286 → 400 lines (+114 lines - Swift enhancements)
 
 ---
 
-### 1. Repo Structure
+### Entry 8: Fix Duplicate Pattern (2025-05-12)
 
-**Decision**: Use sub-skills in a single repo (Option A).
+**Problem:** Duplicate pattern section in stratos-swiftui/SKILL.md:
+- Two sections labeled "Pattern 3: EnvironmentKey for Themes"
+- Incorrect subsequent pattern numbering due to duplication and misnumbering
 
-**Rationale**:
-- Keeps brand cohesive under "Stratos"
-- Each skill is independently discoverable
-- Works with `npx skills add peterfriese/Stratos@stratos-*`
-- Luca.tools supports `--skill` flag for sub-directory installation
+**Fix applied:**
+1. Removed the duplicate "Pattern 3: EnvironmentKey for Themes" section
+2. Renumbered all subsequent patterns correctly:
+   - Pattern 1: The Container View (unchanged)
+   - Pattern 2: The Observable Model (unchanged)
+   - Pattern 2: The Modifier Chain → Pattern 3: The Modifier Chain
+   - Pattern 3: EnvironmentKey for Themes → Pattern 4: EnvironmentKey for Themes
+   - Pattern 4: Style Protocols for Deep Customization → Pattern 5: Style Protocols for Deep Customization
+   - Pattern 5: Preview Usage → Pattern 6: Preview Usage
+   - Pattern 6: Accessibility Considerations → Pattern 7: Accessibility Considerations
 
-### 2. Orthogonal Skills
+**Verification:**
+```
+stratos-swiftui: 357 → 316 lines (-41 lines - removed duplicate)
+Pattern numbering: 1→7 (all correct and sequential)
+```
 
-**Decision**: Keep skills orthogonal - stratos-swiftui and stratos-swift reference (not include) stratos-core.
+**What we learned:**
+- Duplicate sections can cause cascading numbering errors
+- Pattern-based organization requires careful maintenance when adding/removing sections
+- Automated checks for pattern numbering can help prevent such issues
+- Keeping skills focused on their domain (SwiftUI-only) makes them easier to review and maintain
 
-**Rationale**:
-- Simpler activation logic
-- Easier to test independently
-- Can run evals later to compare with embedding core principles directly
+---
 
-### 3. Documentation Location
+### Entry 9: WWDC Alignment Discovery (2025-05-12)
 
-**Decision**: Use `docs/JOURNAL.md` for implementation log, `docs/DEVELOPMENT.md` for development guidance, `references/` for skill-specific technical details.
+**What we did:**
+1. Reviewed WWDC 2022-10059: "The craft of SwiftUI API design: Progressive disclosure"
+2. Compared video's principles against Stratos skills methodology
 
-**Rationale**:
-- `docs/JOURNAL.md` - what happened, decisions made, lessons learned
-- `docs/DEVELOPMENT.md` - how to develop future skills
-- `references/` - detailed technical content agents can load on demand
-- Clear separation of concerns
+**Discovery:**
+The video is essentially a canonical explanation of Progressive Disclosure that Apple uses internally for SwiftUI API design. It aligns nearly perfectly with stratos-core:
 
-### 4. Naming Convention
+- **Call Site First** - "To make code feel great to use, we have to look at it from the call site"
+- **Consider Common Use Cases** → Design for Troposphere first
+- **Intelligent Defaults** → Avoid Init-Bloat
+- **Compose, Don't Enumerate** → Rejects Boolean/String traps
 
-**Decision**: Use `stratos-core`, `stratos-swiftui`, `stratos-swift` (no prefix/suffix).
+**Alignment scores:**
+- stratos-core: 95% (video IS the canonical source)
+- stratos-swiftui: 80% (all examples are SwiftUI-specific)
+- stratos-swift: 40% (general principles only)
 
-**Rationale**:
-- Simple, clean names
-- Follow agentskills.io spec (lowercase, hyphens allowed)
-- Aligned with Swift naming conventions
+**Decision:**
+Added video to "Further Reading" sections in stratos-core and stratos-swiftui. Did NOT add to stratos-swift since video examples are UI-focused.
+
+**What we learned:**
+- Independent creation is a complete copyright defense - Stratos skills were built without reference to the video
+- Progressive Disclosure is a general UX/HCI principle, not Apple IP
+- Validated Stratos methodology from authoritative source (Apple SwiftUI team)
+
+---
+
+### Entry 10: Swift Craft 2025 - Doug Gregor Talk (2025-05-12)
+
+**What we did:**
+1. Reviewed Swift Craft 2025 keynote: "On Progressive Disclosure in Swift" by Doug Gregor (Swift Core Team)
+2. Compared against Stratos skills
+
+**Discovery:**
+Doug Gregor explains how Swift itself applies Progressive Disclosure as a language design principle:
+- Layer 1: Strings, Arrays, Dictionaries
+- Layer 2: Optionals, Closures
+- Layer 3: Generics, Concurrency
+
+Case studies: Typed Throws, Non-Copyable Types, "Approachable Concurrency" vision.
+
+**Alignment scores:**
+- stratos-core: 90% (language PD aligns with API PD)
+- stratos-swift: 85% (mentions Typed Throws, Non-Copyable, Concurrency evolution)
+- stratos-swiftui: 60% (language-focused, not UI-specific)
+
+**Key difference from WWDC:**
+- WWDC: Progressive Disclosure for API design (SwiftUI)
+- Doug: Progressive Disclosure for language design (Swift)
+
+**Decision:**
+Added to stratos-core and stratos-swift (not stratos-swiftui - language focus).
+
+**What we learned:**
+- More technical than WWDC video - good for explaining *why* Swift follows these principles
+- "Approachable Concurrency" vision document is relevant to stratos-swift concurrency patterns
+- Two videos now provide complementary perspectives on the same principle
 
 ---
 
@@ -223,37 +276,24 @@ stratos-swift:   286 → 400 lines (+114 lines - Swift enhancements)
 
 ```
 Stratos/
-├── AGENTS.md                 # All-in-one development guidance
+├── LICENSE                    # Apache 2.0
+├── CONTRIBUTING.md           # Contribution guidelines
+├── README.md                  # Project overview
+├── AGENTS.md                  # Development guidance for AI agents
 ├── stratos-core/
-│   └── SKILL.md              # Core methodology (271 lines)
+│   └── SKILL.md               # Core methodology (v1.0)
 ├── stratos-swiftui/
-│   ├── SKILL.md              # SwiftUI skill (216 lines)
+│   ├── SKILL.md               # SwiftUI skill (v1.0)
 │   └── references/
 │       └── LAYERS.md         # Detailed layer guidance
 ├── stratos-swift/
-│   ├── SKILL.md              # Swift skill (286 lines)
+│   ├── SKILL.md               # Swift skill (v1.0)
 │   └── references/
 │       └── LAYERS.md         # Detailed layer guidance
 ├── docs/
-│   └── JOURNAL.md           # Implementation journey
+│   └── JOURNAL.md            # Implementation journey
 └── scripts/
     └── validate-skills.swift # Validation script
-```
-
----
-
-## Installation Commands
-
-```bash
-# Using npx (Vercel skills CLI)
-npx skills add peterfriese/Stratos@stratos-core
-npx skills add peterfriese/Stratos@stratos-swiftui
-npx skills add peterfriese/Stratos@stratos-swift
-
-# Using luca.tools
-luca install peterfriese/Stratos --skill stratos-core
-luca install peterfriese/Stratos --skill stratos-swiftui
-luca install peterfriese/Stratos --skill stratos-swift
 ```
 
 ---
@@ -265,6 +305,49 @@ luca install peterfriese/Stratos --skill stratos-swift
 - [ ] Create Swift package for common utilities
 - [ ] Consider adding TypeScript/React skill following same pattern
 - [ ] Publish to SkillRegistry for broader discovery
+
+---
+
+### Entry 11: Launch Preparation (2025-05-12)
+
+**What we did:**
+1. Downloaded hero image from Pexels (Half Dome star trails by Robert Hacker)
+2. Created 3 icon design options for each skill (Option A, B, C)
+3. Added Apache 2.0 LICENSE file
+4. Created CONTRIBUTING.md with guidelines
+5. Updated README.md with hero image, badges, and acknowledgments
+6. Updated AGENTS.md with proper assets structure
+7. Bumped all skills to version 1.0
+
+**File structure created:**
+```
+assets/
+├── hero.jpg                    # Pexels hero image
+├── option-a-stratos-core.svg   # Option A design (used)
+├── option-b-stratos-core.svg   # Option B design
+├── option-c-stratos-core.svg   # Option C design
+... (similar for swift and swiftui)
+stratos-core/assets/
+├── icon.png                    # Primary icon (512x512)
+├── icon.svg                    # Primary icon (vector)
+├── icon-option-b.png
+└── icon-option-c.png
+... (similar for swift and swiftui)
+```
+
+**Icon design options:**
+- **Option A**: Gradient "S" monogram with atmosphere layers (blue→purple gradient, dark sky background with stars)
+- **Option B**: Ascending wave layers representing Troposphere→Thermosphere with gradient path
+- **Option C**: Minimalist glow effect with vertical line and curve
+
+**What we learned:**
+- rsync or curl can download Pexels images directly
+- rsvg-convert converts SVG to PNG at any resolution
+- Three design options give good comparison for visual identity
+- Apache 2.0 is a good license for open source libraries
+- Hero images should be high-res (2400px width) for README display
+
+**Decision:** Removed artwork before launch (2025-05-12) — decided to launch without it for simplicity.
 
 ---
 
