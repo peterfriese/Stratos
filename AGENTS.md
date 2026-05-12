@@ -38,16 +38,6 @@ metadata:
 ---
 ```
 
-## Lucafile Setup
-
-This repo includes a Lucafile for development tools. Run:
-
-```bash
-luca install
-```
-
-Currently, no external tools are required - Swift is available via the system.
-
 ## Creating a New Skill
 
 1. Create directory: `stratos-new-skill/`
