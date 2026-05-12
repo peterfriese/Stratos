@@ -18,10 +18,10 @@ AI Agent Skills for High-End API Design following the principle of Progressive D
 ### Install All Skills
 
 ```bash
-npx skills add peterfriese/Stratos@stratos-core
-npx skills add peterfriese/Stratos@stratos-swiftui
-npx skills add peterfriese/Stratos@stratos-swift
+npx skills add peterfriese/Stratos
 ```
+
+This will prompt you to select which skills to install.
 
 ### Install Individual Skills
 
@@ -39,9 +39,7 @@ npx skills add peterfriese/Stratos@stratos-swift
 ### Luca
 
 ```bash
-luca skills add peterfriese/Stratos@stratos-core
-luca skills add peterfriese/Stratos@stratos-swiftui
-luca skills add peterfriese/Stratos@stratos-swift
+luca skills add peterfriese/Stratos
 ```
 
 ## Philosophy
