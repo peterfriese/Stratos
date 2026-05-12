@@ -67,19 +67,26 @@ typealias PaymentStatus = String  // Reject stringly-typed
 
 ## Swift 6 Concurrency
 
-### Actor Isolation
+### Actor Patterns for Safe APIs
+
+#### State Isolation After Await
 
 ```swift
-// GOOD: Proper actor isolation
+// SAFE PATTERN: Check state → await → store result
 actor UserRepository {
-    private var cache: [User] = []
+    private var cache: [User.ID: User] = [:]
 
     func fetchUser(id: User.ID) async -> User? {
-        if let cached = cache.first(where: { $0.id == id }) {
+        // Check cache first (no await yet)
+        if let cached = cache[id] {
             return cached
         }
+        
+        // Then perform async work
         let user = try await api.fetch(id: id)
-        cache.append(user)
+        
+        // Store result after async work completes
+        cache[id] = user
         return user
     }
 }
@@ -89,26 +96,129 @@ let repository = UserRepository()
 let user = await repository.fetchUser(id: "123")
 ```
 
-### Sendable Compliance
+#### Reentrancy Safety
 
 ```swift
-// GOOD: Explicit Sendable conformance for value types
-struct User: Sendable {
-    let id: String
-    let name: String
-}
+// SAFE: Capture result before storing
+actor ImageCache {
+    private var cache: [URL: Image] = [:]
+    private var inFlight: [URL: Task<Image, Error>] = [:]
 
-// GOOD: @unchecked Sendable for types that are logically safe
-final class Cache: @unchecked Sendable {
-    private var storage: [String: Any] = [:]
-    // Thread-safe by design (e.g., using locks)
+    func image(from url: URL) async throws -> Image {
+        // Check cache first
+        if let cached = cache[url] {
+            return cached
+        }
+        
+        // Check if already downloading
+        if let task = inFlight[url] {
+            return try await task.value
+        }
+        
+        // Start download task
+        let task = Task {
+            try await downloadImage(url)
+        }
+        inFlight[url] = task
+        
+        do {
+            let image = try await task.value
+            cache[url] = image
+            inFlight[url] = nil
+            return image
+        } catch {
+            inFlight[url] = nil
+            throw error
+        }
+    }
 }
 ```
 
-### Async Sequences
+**Guideline**: Always check state before any `await`, then store results after async work completes. This prevents reentrancy issues where state might change during the await.
+
+### Sendable Usage
+
+#### Value Types are Naturally Sendable
 
 ```swift
-// GOOD: Using AsyncStream for reactive data
+// PREFERRED: Immutable value types are naturally Sendable
+struct UserID: Sendable {
+    let value: UUID
+}
+
+struct Point: Sendable {
+    let x: Double
+    let y: Double
+}
+```
+
+#### Justified @unchecked Sendable
+
+```swift
+// REQUIRES EXPLICIT JUSTIFICATION: Custom synchronization
+@unchecked Sendable
+final class ThreadSafeCounter {
+    private var value = 0
+    private let lock = NSLock()
+    
+    func increment() { 
+        lock.lock(); 
+        value += 1; 
+        lock.unlock() 
+    }
+    
+    func getValue() -> Int { 
+        lock.lock(); 
+        defer { lock.unlock() }; 
+        return value 
+    }
+}
+```
+
+**Guideline**: Prefer natural Sendable conformance (value types, actors). Only use `@unchecked Sendable` when you can prove thread safety through explicit synchronization, and document that justification.
+
+### Structured Concurrency
+
+#### Task Groups for Concurrent Work
+
+```swift
+// INSTEAD OF: Unstructured tasks in a loop
+// for url in urls {
+//     Task { 
+//         do { 
+//             let data = try await fetch(url) 
+//             results.append(data) 
+//         } catch {
+//             // Handle error
+//         }
+//     }
+// }
+
+// USE: Structured concurrency with Task Group
+func fetchAll(_ urls: [URL]) async throws -> [Data] {
+    try await withThrowingTaskGroup(of: Data.self) { group in
+        for url in urls {
+            group.addTask { 
+                try await fetch(url) 
+            }
+        }
+        
+        var results: [Data] = []
+        for try await data in group {
+            results.append(data)
+        }
+        return results
+    }
+}
+
+// Usage:
+let images = try await fetchAll(imageURLs)
+```
+
+#### Async Sequences for Streaming Data
+
+```swift
+// GOOD: Using AsyncStream for reactive data streams
 func fetchUpdates() -> AsyncStream<Update> {
     AsyncStream { continuation in
         let task = Task {
@@ -129,6 +239,8 @@ for await update in fetchUpdates() {
     print(update)
 }
 ```
+
+**Guideline**: Prefer structured concurrency (Task Groups) over unstructured tasks. Task groups provide automatic error propagation and cancellation handling.
 
 ---
 
@@ -239,14 +351,16 @@ public extension Array where Element: Sortable {
 
 ## Rejection Criteria
 
-Follow the rejection criteria from stratos-core:
+Follow the core rejection criteria from stratos-core:
 - **Stringly-Typed APIs**: Use enums instead of strings
-- **Boolean Traps**: Use semantic enums instead of booleans
+- **Boolean Traps**: Use semantic enums instead of booleans  
 - **Implicit Any**: Use concrete types
 
 Additional rejections for Swift libraries:
-- **Global State**: Prefer dependency injection
-- **Type Erasure**: Avoid `[String: Any]`, use concrete types
+- **Global State**: Prefer dependency injection over shared mutable state
+- **Unjustified @unchecked Sendable**: Only use with explicit thread-safety justification
+- **Type Erasure**: Avoid `[String: Any]`, use concrete types or proper generics
+- **Blocking APIs in Async Context**: Prefer async/await over completion handlers where appropriate
 
 See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for core anti-patterns.
 

@@ -138,7 +138,46 @@ Total removed: ~114 lines
 
 ---
 
-## Decisions Made
+### Day 3: Enhancement with Modern Patterns (2025-05-12)
+
+**Problem:** Skills needed to be updated with modern Swift/SwiftUI best practices while maintaining orthogonality.
+
+**Enhancements Applied:**
+
+**stratos-swiftui/SKILL.md** (SwiftUI-specific):
+- Added Observable model pattern (@Observable model objects with @State in views)
+- Enhanced Style Protocols with proper animation (value-based animations)
+- Added Preview usage examples with #Preview
+- Added Accessibility considerations (labelled buttons for VoiceOver)
+- Maintained focus on SwiftUI-only patterns (views, modifiers, styles, environment)
+
+**stratos-swift/SKILL.md** (Swift-specific):
+- Enhanced Actor patterns: State isolation after await (check → await → store)
+- Added Structured Concurrency: Task Groups over unstructured tasks
+- Enhanced Sendable usage: Natural conformance vs justified @unchecked Sendable
+- Added comprehensive async error handling patterns
+- Maintained focus on Swift-only patterns (actors, concurrency, APIs, libraries)
+
+**Core Principle Maintained:** 
+- Both skills reference stratos-core for Progressive Disclosure methodology
+- No duplication of core methodology - each skill contains only domain-specific implementation
+- Strict orthogonality: SwiftUI skill contains NO Swift API examples, Swift skill contains NO SwiftUI examples
+
+**Verification:**
+```
+stratos-core:   271 → 271 lines (unchanged - core methodology)
+stratos-swiftui: 216 → 357 lines (+141 lines - SwiftUI enhancements)
+stratos-swift:   286 → 400 lines (+114 lines - Swift enhancements)
+```
+
+**What we learned:**
+- Maintaining orthogonality leads to cleaner, more focused skills
+- Modern Swift/SwiftUI patterns enhance the practical utility of the skills
+- Clear domain boundaries make skills easier to use and understand
+- Referencing core methodology keeps the single source of truth principle intact
+- Enhancements should stay within each skill's domain to preserve orthogonality
+
+---
 
 ### 1. Repo Structure
 

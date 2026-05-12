@@ -82,6 +82,53 @@ struct Badge<Content: View>: View {
 
 **Guideline**: Keep the primary initializer for the most common use case. Add modifiers for customization.
 
+### Pattern 2: The Observable Model
+
+```swift
+// CALL SITE (in view):
+ProfileView(userViewModel)
+
+// VIEW MODEL:
+@Observable
+class UserViewModel {
+    var name: String = ""
+    var email: String = ""
+    var isLoading: Bool = false
+    
+    func updateProfile() {
+        // Update properties - views observing this will update automatically
+        isLoading = true
+        // ... update logic
+        isLoading = false
+    }
+}
+
+// VIEW:
+struct ProfileView: View {
+    @State private var viewModel = UserViewModel()
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            TextField("Name", text: $viewModel.name)
+                .textFieldStyle(.roundedBorder)
+            TextField("Email", text: $viewModel.email)
+                .textFieldStyle(.roundedBorder)
+            if viewModel.isLoading {
+                ProgressView()
+            }
+            Button("Update Profile") {
+                viewModel.updateProfile()
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(viewModel.isLoading)
+        }
+        .padding()
+    }
+}
+```
+
+**Guideline**: Use `@Observable` for model objects that need to be observed across views. Combine with `@State` in views for optimal performance.
+
 ---
 
 ### Pattern 2: The Modifier Chain
@@ -113,6 +160,45 @@ enum TextWeight {
 
 **Guideline**: Each modifier should be independently useful. Avoid creating chains that must always be used together.
 
+### Pattern 3: EnvironmentKey for Themes
+
+```swift
+// CALL SITE:
+MyApp()
+    .theme(.dark)
+
+struct MyView: View {
+    @Environment(\.theme) var theme
+}
+
+// IMPLEMENTATION:
+struct Theme: Equatable {
+    var primaryColor: Color
+    var backgroundColor: Color
+    // ...
+}
+
+struct ThemeKey: EnvironmentKey {
+    static let defaultValue = Theme.light
+}
+
+extension EnvironmentValues {
+    var theme: Theme {
+        get { self[ThemeKey.self] }
+        set { self[ThemeKey.self] = newValue }
+    }
+}
+
+// Convenience modifier:
+extension View {
+    func theme(_ theme: Theme) -> some View {
+        environment(\.theme, theme)
+    }
+}
+```
+
+**Guideline**: Use EnvironmentKeys for truly hierarchical concerns (themes, localization, feature flags). Don't use Environment to bypass proper dependency injection.
+
 ---
 
 ### Pattern 3: EnvironmentKey for Themes
@@ -143,6 +229,13 @@ extension EnvironmentValues {
         set { self[ThemeKey.self] = newValue }
     }
 }
+
+// Convenience modifier:
+extension View {
+    func theme(_ theme: Theme) -> some View {
+        environment(\.theme, theme)
+    }
+}
 ```
 
 **Guideline**: Use EnvironmentKeys for truly hierarchical concerns (themes, localization, feature flags). Don't use Environment to bypass proper dependency injection.
@@ -161,14 +254,62 @@ struct MyCustomButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .padding()
-            .background(configuration.isPressed ? Color.gray : Color.blue)
+            .background(
+                configuration.isPressed 
+                    ? Color.gray.opacity(0.8) 
+                    : Color.blue
+            )
             .foregroundColor(.white)
             .cornerRadius(8)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 ```
 
 **Guideline**: Style protocols are Thermosphere (Layer 4). Most developers should compose existing modifiers. Only implement custom Styles when Layer 2-3 patterns prove insufficient.
+
+---
+
+### Pattern 5: Preview Usage
+
+```swift
+// CALL SITE (in preview file):
+#Preview {
+    Badge("New")
+        .previewLayout(.sizeThatFits)
+        .padding()
+}
+
+// OR with environment:
+#Preview {
+    Badge("New")
+        .environment(\.theme, Theme.dark)
+        .previewLayout(.device)
+}
+```
+
+**Guideline**: Use `#Preview` for SwiftUI previews instead of legacy PreviewProvider. Test different configurations and layouts.
+
+---
+
+### Pattern 6: Accessibility Considerations
+
+```swift
+// CALL SITE:
+// Instead of:
+Button(action: play) { Image(systemName: "play.fill") }
+
+// Better (labelled for VoiceOver):
+Button("Play Media", systemImage: "play.fill", action: play)
+
+// Or with custom label:
+Button(action: play) {
+    Label("Play Media", systemImage: "play.fill")
+}
+```
+
+**Guideline**: Always provide accessible labels for VoiceOver users. Prefer labelled buttons over icon-only buttons.
 
 ---
 
