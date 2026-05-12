@@ -44,22 +44,9 @@ let users = try await userService.fetchUsers()
 // THEN implement to support this API
 ```
 
----
+See [stratos-core/SKILL.md](../stratos-core/SKILL.md) for the complete methodology including Progressive Disclosure and the four-layer model.
 
-### 2. Progressive Disclosure
-
-Follow the four-layer model:
-
-| Layer | Swift Pattern | Use For |
-|-------|--------------|---------|
-| Troposphere | Default parameters, sensible initializers | Zero-config, common cases |
-| Stratosphere | Builder patterns, configuration structs | Targeted customization |
-| Mesosphere | Environment/Dependency injection | Hierarchical context |
-| Thermosphere | Protocol extensions, feature flags | Deep customization |
-
----
-
-### 3. Type Safety Over Convenience
+### 2. Type Safety Over Convenience
 
 ```swift
 // PREFER:
@@ -252,45 +239,16 @@ public extension Array where Element: Sortable {
 
 ## Rejection Criteria
 
-**Reject** in stratos-swift:
+Follow the rejection criteria from stratos-core:
+- **Stringly-Typed APIs**: Use enums instead of strings
+- **Boolean Traps**: Use semantic enums instead of booleans
+- **Implicit Any**: Use concrete types
 
-### Stringly-Typed APIs
+Additional rejections for Swift libraries:
+- **Global State**: Prefer dependency injection
+- **Type Erasure**: Avoid `[String: Any]`, use concrete types
 
-```swift
-// REJECT:
-func setStatus("active")
-func configure("debug", "verbose")
-
-// ACCEPT:
-enum Status { case active, inactive }
-func setStatus(_: Status)
-enum LogLevel { case debug, verbose }
-func configure(level: LogLevel)
-```
-
-### Implicit Any
-
-```swift
-// REJECT:
-func fetchData() -> [String: Any]
-
-// ACCEPT:
-func fetchData() -> [String: Data]  // Concrete type
-```
-
-### Global State
-
-```swift
-// REJECT:
-static var shared: Singleton
-UserDefaults.standard.set("value", forKey: "key")
-
-// ACCEPT: Dependency injection
-struct Service {
-    let storage: Storage  // Protocol
-    init(storage: Storage) { ... }
-}
-```
+See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for core anti-patterns.
 
 ---
 

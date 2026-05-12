@@ -108,6 +108,36 @@ Created `scripts/validate-skills.swift` to validate:
 
 ---
 
+### Day 2: Deduplication (2025-05-12)
+
+**Problem:** Significant duplication across skills:
+1. "When to Apply" (stratos-core) vs "Activation Triggers" - nearly identical
+2. Progressive Disclosure + Four Layers - full in core, abbreviated tables in swiftui/swift
+3. Call Site First - repeated in all three skills
+4. Boolean Traps - repeated in core and swiftui
+5. Stringly-Typed APIs - repeated in core and swift
+
+**Fix applied:**
+1. Removed "When to Apply" section from stratos-core (redundant with Activation Triggers)
+2. Replaced abbreviated PD + layers tables in swiftui/swift with references to stratos-core
+3. Replaced duplicate rejection criteria in swiftui/swift with references to stratos-core
+
+**Verification:**
+```
+stratos-core:   279 → 271 lines (-8)
+stratos-swiftui: 280 → 216 lines (-64)
+stratos-swift:   328 → 286 lines (-42)
+Total removed: ~114 lines
+```
+
+**What we learned:**
+- Orthogonal skills should reference, not repeat
+- "When to Apply" and "Activation Triggers" serve different purposes conceptually, but the content was redundant - resolved by keeping only triggers
+- Each skill should keep only what makes it unique (swiftui: patterns, swift: concurrency/builders, core: methodology)
+- References in SKILL.md work well for linking to other skills
+
+---
+
 ## Decisions Made
 
 ### 1. Repo Structure
@@ -154,19 +184,19 @@ Created `scripts/validate-skills.swift` to validate:
 
 ```
 Stratos/
+├── AGENTS.md                 # All-in-one development guidance
 ├── stratos-core/
-│   └── SKILL.md              # Core methodology (279 lines)
+│   └── SKILL.md              # Core methodology (271 lines)
 ├── stratos-swiftui/
-│   ├── SKILL.md              # SwiftUI skill (280 lines)
+│   ├── SKILL.md              # SwiftUI skill (216 lines)
 │   └── references/
 │       └── LAYERS.md         # Detailed layer guidance
 ├── stratos-swift/
-│   ├── SKILL.md              # Swift skill (328 lines)
+│   ├── SKILL.md              # Swift skill (286 lines)
 │   └── references/
 │       └── LAYERS.md         # Detailed layer guidance
 ├── docs/
-│   ├── JOURNAL.md           # This file - implementation journey
-│   └── DEVELOPMENT.md       # Guidelines for developing skills
+│   └── JOURNAL.md           # Implementation journey
 └── scripts/
     └── validate-skills.swift # Validation script
 ```

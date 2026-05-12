@@ -49,18 +49,9 @@ Card {
 
 **Why**: The call site is what developers see in their code 90% of the time. If it feels awkward, the API is wrong.
 
----
-
 ### 2. Progressive Disclosure
 
-Follow the four-layer model from stratos-core:
-
-| Layer | SwiftUI Pattern | Use For |
-|-------|-----------------|---------|
-| Troposphere | Default initializers | Zero-config, sensible defaults |
-| Stratosphere | ViewModifiers | Targeted adjustments |
-| Mesosphere | EnvironmentKey | Hierarchical themes/config |
-| Thermosphere | Style protocols | Full customization |
+See [stratos-core/SKILL.md](../stratos-core/SKILL.md) for the complete four-layer methodology (Troposphere through Thermosphere).
 
 ---
 
@@ -183,67 +174,12 @@ struct MyCustomButtonStyle: ButtonStyle {
 
 ## Rejection Criteria
 
-**Reject** in stratos-swiftui:
+Follow the rejection criteria from stratos-core:
+- **Init-Bloat**: More than 3-4 parameters in initializer
+- **Boolean Traps**: Use semantic enums instead of booleans
+- **Non-Composable Modifiers**: Each modifier should be independently useful
 
-### Init-Bloat
-
-```swift
-// REJECT:
-struct CardView {
-    init(
-        title: String,
-        subtitle: String,
-        image: URL,
-        badge: String?,
-        action: () -> Void,
-        style: CardStyle,
-        shadow: Bool,
-        padding: CGFloat,
-        cornerRadius: CGFloat
-    )
-}
-
-// ACCEPT: Progressive disclosure
-struct CardView {
-    init(title: String, subtitle: String, image: URL)  // Required only
-    func badge(_ text: String) -> Self  // Optional via modifier
-    func style(_: CardStyle) -> Self
-}
-```
-
----
-
-### Boolean Traps
-
-```swift
-// REJECT:
-func isBold(_: Bool)
-func showBadge(_: Bool)
-
-// ACCEPT:
-enum TextWeight { case regular, prominent }
-func weight(_: TextWeight)
-```
-
----
-
-### Non-Composable Modifiers
-
-```swift
-// REJECT:
-Text("Hello")
-    .cardConfiguration(  // All-or-nothing modifier
-        title: "Title",
-        body: "Body",
-        style: .elevated
-    )
-
-// ACCEPT: Independent modifiers
-Text("Hello")
-    .cardTitle("Title")
-    .cardBody("Body")
-    .cardStyle(.elevated)
-```
+See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for detailed examples.
 
 ---
 

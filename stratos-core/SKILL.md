@@ -26,14 +26,6 @@ Progressive Disclosure means:
 - **Complexity is opt-in**: Advanced features are available but don't clutter the common case
 - **Escalation is intentional**: Moving from simple to complex should require explicit action, not accidental discovery
 
-### When to Apply
-
-Apply Progressive Disclosure when:
-1. Designing new APIs (functions, classes, protocols)
-2. Creating SwiftUI components
-3. Defining configuration systems
-4. Reviewing existing code for improvement opportunities
-
 ---
 
 ## The Four Layers
