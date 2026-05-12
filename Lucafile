@@ -1,5 +1,9 @@
 ---
-comment: "Stratos development tools - add as needed"
+comment: "Stratos development tools - Swift is provided by the system (macOS)"
 ---
 
-tools: []
+tools:
+  - name: Swift
+    # Swift is provided by the system (Xcode or swift.org)
+    # Currently using system Swift for validation script
+    version: latest
