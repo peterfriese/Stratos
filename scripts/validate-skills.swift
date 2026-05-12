@@ -109,26 +109,86 @@ func parseFrontmatter(_ yaml: String, skillName: String, result: inout Validatio
     var name: String?
     var description: String?
 
-    let pattern = #"(\w+):\s*(.*)"#
+    let yamlLines = yaml.components(separatedBy: "\n")
+    var i = 0
 
-    for line in yaml.components(separatedBy: "\n") {
+    while i < yamlLines.count {
+        let line = yamlLines[i]
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
 
-        if let regex = try? NSRegularExpression(pattern: pattern),
+        // Skip empty lines and comments
+        if trimmed.isEmpty || trimmed.hasPrefix("#") {
+            i += 1
+            continue
+        }
+
+        // Match key: value pattern
+        let keyValuePattern = #"^(\w+):\s*(.*)$"#
+        if let regex = try? NSRegularExpression(pattern: keyValuePattern),
            let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) {
 
-            if let keyRange = Range(match.range(at: 1), in: trimmed),
-               let valueRange = Range(match.range(at: 2), in: trimmed) {
+            if let keyRange = Range(match.range(at: 1), in: trimmed) {
                 let key = String(trimmed[keyRange]).lowercased()
-                let value = String(trimmed[valueRange]).trimmingCharacters(in: .whitespaces)
+
+                // Get the value part after the colon
+                var value = ""
+                if let valueRange = Range(match.range(at: 2), in: trimmed) {
+                    value = String(trimmed[valueRange])
+                }
+
+                // Check if this is a multiline value (starts with | or >)
+                let isMultiline = value.hasPrefix("|") || value.hasPrefix(">")
+
+                if isMultiline {
+                    // Collect all indented lines that belong to this value
+                    var multilineContent: [String] = []
+
+                    // The first line after | or > contains the first line of content
+                    // Strip the | or > and any leading whitespace indicator
+                    let indicator = value.hasPrefix("|") ? "|" : ">"
+                    let firstLine = value.replacingOccurrences(of: indicator, with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                    if !firstLine.isEmpty {
+                        multilineContent.append(firstLine)
+                    }
+
+                    // Collect subsequent indented lines
+                    i += 1
+                    while i < yamlLines.count {
+                        let nextLine = yamlLines[i]
+                        // Check if line is indented (starts with whitespace)
+                        if nextLine.hasPrefix(" ") || nextLine.hasPrefix("\t") {
+                            multilineContent.append(nextLine.trimmingCharacters(in: .whitespacesAndNewlines))
+                            i += 1
+                        } else if nextLine.trimmingCharacters(in: .whitespaces).isEmpty {
+                            // Allow empty lines in multiline
+                            i += 1
+                        } else {
+                            // Non-indented line - end of multiline value
+                            break
+                        }
+                    }
+
+                    value = multilineContent.joined(separator: " ")
+                } else {
+                    // Single-line value
+                    value = value.trimmingCharacters(in: .whitespaces)
+                    i += 1
+                }
+
+                // Trim trailing whitespace and newlines from value
+                value = value.trimmingCharacters(in: .whitespacesAndNewlines)
 
                 if key == "name" {
                     name = value
                 } else if key == "description" {
                     description = value
                 }
+            } else {
+                i += 1
             }
+        } else {
+            i += 1
         }
     }
 
