@@ -6,7 +6,7 @@ description: |
   and follows Progressive Disclosure from stratos-core.
 metadata:
   author: peterfriese
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Stratos SwiftUI: Component Designer
@@ -17,7 +17,7 @@ You are **The Component Designer** — specialist in building reusable SwiftUI v
 
 ---
 
-## Activation Triggers
+## Activation triggers
 
 Activate stratos-swiftui when:
 - Building reusable SwiftUI components (custom Views, Buttons, Cards)
@@ -27,9 +27,11 @@ Activate stratos-swiftui when:
 - The user asks "how do I make a reusable SwiftUI component?"
 - Designing component APIs
 
+> **SDK 27 compatibility:** Starting with the 2027 SDKs, `@State` migrated from a property wrapper to a macro. If you encounter "variable used before being initialized" or "invalid redeclaration of synthesized property" errors after updating, do NOT reorder init assignments — that produces incorrect runtime behavior. See Apple's `swiftui-whats-new-27` skill for migration guidance.
+
 ---
 
-## Core Principles
+## Core principles
 
 ### 1. Call Site First
 
@@ -53,11 +55,15 @@ Card {
 
 See [stratos-core/SKILL.md](../stratos-core/SKILL.md) for the complete four-layer methodology (Troposphere through Thermosphere).
 
+### 3. Use @Animatable for custom animations
+
+For custom animatable properties in shapes and views, use the `@Animatable` macro (iOS 26+/macOS 26+) instead of manual `AnimatableValues`. It reduces boilerplate and supports property-level clamping/normalization.
+
 ---
 
-## Component Design Patterns
+## Component design patterns
 
-### Pattern 1: The Container View
+### Pattern 1: The container view
 
 ```swift
 // CALL SITE:
@@ -82,13 +88,15 @@ struct Badge<Content: View>: View {
 
 **Guideline**: Keep the primary initializer for the most common use case. Add modifiers for customization.
 
-### Pattern 2: The Observable Model
+### Pattern 2: The Observable model
 
 ```swift
 // CALL SITE (in view):
 ProfileView(userViewModel)
 
 // VIEW MODEL:
+// Mark @MainActor for Swift 6 strict concurrency safety — views read model properties on the main actor.
+@MainActor
 @Observable
 class UserViewModel {
     var name: String = ""
@@ -129,9 +137,11 @@ struct ProfileView: View {
 
 **Guideline**: Use `@Observable` for model objects that need to be observed across views. Combine with `@State` in views for optimal performance.
 
+> When an `@Observable` class has properties of custom types, ensure those types conform to `Equatable`. This allows SwiftUI to short-circuit redundant view invalidations when the property hasn't actually changed. Without `Equatable`, every property assignment triggers invalidation even if the value is the same.
+
 ---
 
-### Pattern 3: The Modifier Chain
+### Pattern 3: The modifier chain
 
 ```swift
 // CALL SITE:
@@ -160,7 +170,7 @@ enum TextWeight {
 
 **Guideline**: Each modifier should be independently useful. Avoid creating chains that must always be used together.
 
-### Pattern 4: EnvironmentKey for Themes
+### Pattern 4: EnvironmentKey for themes
 
 ```swift
 // CALL SITE:
@@ -178,15 +188,8 @@ struct Theme: Equatable {
     // ...
 }
 
-struct ThemeKey: EnvironmentKey {
-    static let defaultValue = Theme.light
-}
-
 extension EnvironmentValues {
-    var theme: Theme {
-        get { self[ThemeKey.self] }
-        set { self[ThemeKey.self] = newValue }
-    }
+    @Entry var theme: Theme = Theme.light
 }
 
 // Convenience modifier:
@@ -201,7 +204,7 @@ extension View {
 
 ---
 
-### Pattern 5: Style Protocols for Deep Customization
+### Pattern 5: Style protocols for deep customization
 
 ```swift
 // CALL SITE:
@@ -218,8 +221,8 @@ struct MyCustomButtonStyle: ButtonStyle {
                     ? Color.gray.opacity(0.8) 
                     : Color.blue
             )
-            .foregroundColor(.white)
-            .cornerRadius(8)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
@@ -230,7 +233,7 @@ struct MyCustomButtonStyle: ButtonStyle {
 
 ---
 
-### Pattern 6: Preview Usage
+### Pattern 6: Preview usage
 
 ```swift
 // CALL SITE (in preview file):
@@ -252,7 +255,7 @@ struct MyCustomButtonStyle: ButtonStyle {
 
 ---
 
-### Pattern 7: Accessibility Considerations
+### Pattern 7: Accessibility considerations
 
 ```swift
 // CALL SITE:
@@ -272,20 +275,21 @@ Button(action: play) {
 
 ---
 
-## Rejection Criteria
+## Rejection criteria
 
 Follow the rejection criteria from stratos-core:
 - **Init-Bloat**: More than 3-4 parameters in initializer
 - **Boolean Traps**: Use semantic enums instead of booleans
 - **Non-Composable Modifiers**: Each modifier should be independently useful
+- **Conditional `.if()` view modifier extensions** — Extensions that use `@ViewBuilder` to conditionally apply modifiers (`.if(condition) { $0.modifier() }`) break structural identity, reset `@State`, and disable animations when the condition toggles. Use ternary expressions in modifier arguments instead (e.g., `.foregroundStyle(isHighlighted ? .red : .primary)`).
 
 See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for detailed examples.
 
 ---
 
-## Common Tasks
+## Common tasks
 
-### Creating a Reusable Component
+### Creating a reusable component
 
 1. **Design the call site first** — write what you want to see at the usage point
 2. **Start with Troposphere** — single initializer, sensible defaults
@@ -293,14 +297,14 @@ See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for det
 4. **Use Mesosphere** for theme-aware components
 5. **Offer Thermosphere** only if Layer 2-3 insufficient
 
-### Adding a New Modifier
+### Adding a new modifier
 
 1. Does it describe **intent** (what) not **implementation** (how)?
 2. Can it be used independently?
 3. Does it compose with other modifiers?
 4. Is the name discoverable?
 
-### Working with Styles
+### Working with styles
 
 1. Prefer modifiers over custom Styles
 2. Use existing Apple styles as models
@@ -309,12 +313,12 @@ See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for det
 
 ---
 
-## See Also
+## See also
 
 - [stratos-core](../stratos-core/SKILL.md) — Core methodology
 - [references/LAYERS.md](references/LAYERS.md) — Detailed layer implementation
 - [stratos-swift](../stratos-swift/SKILL.md) — Swift library implementation
 
-## Further Reading
+## Further reading
 
 - [The craft of SwiftUI API design: Progressive disclosure](https://developer.apple.com/videos/play/wwdc2022/10059/) (WWDC22) — Apple engineers explain how SwiftUI applies Progressive Disclosure in practice.

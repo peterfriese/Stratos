@@ -4,9 +4,9 @@ Detailed implementation guidance for each of the four Stratos layers in SwiftUI 
 
 ---
 
-## Layer 1: Troposphere — Zero-Config Defaults
+## Layer 1: Troposphere — zero-config defaults
 
-### Implementation Guidelines
+### Implementation guidelines
 
 Troposphere-level components should work with zero configuration:
 
@@ -20,21 +20,21 @@ struct StatusBadge: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(status.color.opacity(0.2))
-            .foregroundColor(status.color)
-            .cornerRadius(4)
+            .foregroundStyle(status.color)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
 // Usage: StatusBadge(status: .active) — works immediately
 ```
 
-### What Belongs Here
+### What belongs here
 
 - Required data (the "what")
 - Sensible defaults that work in 90% of cases
 - Single initializer with max 3-4 parameters
 
-### What Doesn't Belong
+### What doesn't belong
 
 - Optional styling options
 - Configuration variants
@@ -42,9 +42,9 @@ struct StatusBadge: View {
 
 ---
 
-## Layer 2: Stratosphere — Targeted Adjustments
+## Layer 2: Stratosphere — targeted adjustments
 
-### Implementation Guidelines
+### Implementation guidelines
 
 Stratosphere uses ViewModifiers for targeted customization:
 
@@ -60,14 +60,14 @@ extension View {
 }
 ```
 
-### Modifier Design Rules
+### Modifier design rules
 
 1. **Independent**: Each modifier should work alone
 2. **Composable**: Order shouldn't matter (unless it does—document it)
 3. **Discoverable**: Name should match SwiftUI conventions
 4. **Intent over Implementation**: Name the effect, not the method
 
-### Examples of Good Modifiers
+### Examples of good modifiers
 
 ```swift
 // Good: Describes what developer wants
@@ -83,9 +83,9 @@ extension View {
 
 ---
 
-## Layer 3: Mesosphere — Environment Configuration
+## Layer 3: Mesosphere — environment configuration
 
-### When to Use EnvironmentKeys
+### When to use EnvironmentKeys
 
 Use Environment for:
 - **Themes**: colors, typography, spacing
@@ -98,40 +98,17 @@ Don't use Environment for:
 - **Ephemeral state** (use @State)
 - **Cross-cutting concerns** (too broad)
 
-### Implementation Pattern
+### Implementation pattern
 
 ```swift
-// 1. Define the value
-struct AppTheme: Equatable {
-    var primaryColor: Color
-    var cornerRadius: CGFloat
-}
-
-// 2. Define the key
-struct ThemeKey: EnvironmentKey {
-    static let defaultValue = AppTheme(
-        primaryColor: .blue,
-        cornerRadius: 8
-    )
-}
-
-// 3. Add to EnvironmentValues
 extension EnvironmentValues {
-    var theme: AppTheme {
-        get { self[ThemeKey.self] }
-        set { self[ThemeKey.self] = newValue }
-    }
-}
-
-// 4. Convenience modifier
-extension View {
-    func theme(_ theme: AppTheme) -> some View {
-        environment(\.theme, theme)
-    }
+    @Entry var theme: Theme = Theme.light
 }
 ```
 
-### Reading from Environment
+The `@Entry` macro (iOS 18+/macOS 15+) replaces the manual `EnvironmentKey` boilerplate. No need for a separate key struct, computed getter/setter, or default value wrapper.
+
+### Reading from environment
 
 ```swift
 struct MyComponent: View {
@@ -139,8 +116,8 @@ struct MyComponent: View {
 
     var body: some View {
         Text("Hello")
-            .foregroundColor(theme.primaryColor)
-            .cornerRadius(theme.cornerRadius)
+            .foregroundStyle(theme.primaryColor)
+            .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
     }
 }
 ```
@@ -149,7 +126,7 @@ struct MyComponent: View {
 
 ## Layer 4: Thermosphere — Style Protocols
 
-### When to Use Style Protocols
+### When to use style protocols
 
 Thermosphere is for **power users** who need full control. Most developers should stop at Layer 2-3.
 
@@ -158,7 +135,7 @@ Use Style protocols when:
 - You want to enable "themes" that affect many properties at once
 - The customization surface is too large for individual modifiers
 
-### ButtonStyle Example
+### ButtonStyle example
 
 ```swift
 struct ProminentButtonStyle: ButtonStyle {
@@ -172,15 +149,15 @@ struct ProminentButtonStyle: ButtonStyle {
                     ? Color.blue.opacity(0.8)
                     : Color.blue
             )
-            .foregroundColor(.white)
-            .cornerRadius(10)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 ```
 
-### LabelStyle Example
+### LabelStyle example
 
 ```swift
 struct IconLabelStyle: LabelStyle {
@@ -195,7 +172,7 @@ struct IconLabelStyle: LabelStyle {
 }
 ```
 
-### Style Composition
+### Style composition
 
 ```swift
 // Use with modifier
@@ -209,7 +186,7 @@ Label("Title", systemImage: "star")
 
 ---
 
-## Layer Escalation Decision Tree
+## Layer escalation decision tree
 
 ```
 Is there a default that works for 90% of cases?
@@ -230,9 +207,9 @@ Is there a default that works for 90% of cases?
 
 ---
 
-## Anti-Patterns
+## Anti-patterns
 
-### Over-Engineering
+### Over-engineering
 
 ```swift
 // BAD: Creating a Style when a simple modifier would suffice
@@ -242,7 +219,7 @@ struct SimpleTextStyle: TextStyle { ... }  // Overkill
 Text("Hello").fontWeight(.prominent)
 ```
 
-### Environment Abuse
+### Environment abuse
 
 ```swift
 // BAD: Using Environment for dependency injection
@@ -254,7 +231,7 @@ struct NetworkClient: EnvironmentKey {
 protocol NetworkClientProtocol { ... }
 ```
 
-### Modifier Explosion
+### Modifier explosion
 
 ```swift
 // BAD: Too many modifiers that should be grouped
@@ -272,7 +249,7 @@ Text("Hello")
 
 ---
 
-## Further Reading
+## Further reading
 
 - Apple's [Styling Views](https://developer.apple.com/documentation/swiftui/view-styling) documentation
 - [SwiftUI Style Protocols](https://developer.apple.com/documentation/swiftui/buttonstyle) guide

@@ -17,7 +17,7 @@ You are **The SDK Engineer** — specialist in designing Swift libraries, SDKs, 
 
 ---
 
-## Activation Triggers
+## Activation triggers
 
 Activate stratos-swift when:
 - Building Swift packages or libraries
@@ -29,7 +29,7 @@ Activate stratos-swift when:
 
 ---
 
-## Core Principles
+## Core principles
 
 ### 1. Call Site First
 
@@ -65,11 +65,11 @@ typealias PaymentStatus = String  // Reject stringly-typed
 
 ---
 
-## Swift 6 Concurrency
+## Swift 6 concurrency
 
-### Actor Patterns for Safe APIs
+### Actor patterns for safe APIs
 
-#### State Isolation After Await
+#### State isolation after await
 
 ```swift
 // SAFE PATTERN: Check state → await → store result
@@ -96,7 +96,7 @@ let repository = UserRepository()
 let user = await repository.fetchUser(id: "123")
 ```
 
-#### Reentrancy Safety
+#### Reentrancy safety
 
 ```swift
 // SAFE: Capture result before storing
@@ -136,9 +136,9 @@ actor ImageCache {
 
 **Guideline**: Always check state before any `await`, then store results after async work completes. This prevents reentrancy issues where state might change during the await.
 
-### Sendable Usage
+### Sendable usage
 
-#### Value Types are Naturally Sendable
+#### Value types are naturally Sendable
 
 ```swift
 // PREFERRED: Immutable value types are naturally Sendable
@@ -177,9 +177,9 @@ final class ThreadSafeCounter {
 
 **Guideline**: Prefer natural Sendable conformance (value types, actors). Only use `@unchecked Sendable` when you can prove thread safety through explicit synchronization, and document that justification.
 
-### Structured Concurrency
+### Structured concurrency
 
-#### Task Groups for Concurrent Work
+#### Task groups for concurrent work
 
 ```swift
 // INSTEAD OF: Unstructured tasks in a loop
@@ -215,7 +215,7 @@ func fetchAll(_ urls: [URL]) async throws -> [Data] {
 let images = try await fetchAll(imageURLs)
 ```
 
-#### Async Sequences for Streaming Data
+#### Async sequences for streaming data
 
 ```swift
 // GOOD: Using AsyncStream for reactive data streams
@@ -246,7 +246,7 @@ for await update in fetchUpdates() {
 
 ## Result-Builder APIs
 
-### Designing Builders
+### Designing builders
 
 ```swift
 // CALL SITE:
@@ -291,7 +291,7 @@ struct RequestBuilder {
 }
 ```
 
-### Guidelines for Builders
+### Guidelines for builders
 
 1. **Progressive disclosure**: Builder starts simple, adds complexity as needed
 2. **Named components**: Each builder component should be self-documenting
@@ -300,9 +300,9 @@ struct RequestBuilder {
 
 ---
 
-## Library Evolution
+## Library evolution
 
-### Versioning Strategy
+### Versioning strategy
 
 ```swift
 // GOOD: Clear public vs internal boundaries
@@ -319,7 +319,7 @@ public init(id: UUID, name: String) {
 }
 ```
 
-### API Stability
+### API stability
 
 ```swift
 // PREFER: Concrete types over protocols for stable APIs
@@ -331,7 +331,7 @@ protocol UserRepository {  // Can be unstable
 }
 ```
 
-### Extension Points
+### Extension points
 
 ```swift
 // GOOD: Provide extension points
@@ -349,7 +349,7 @@ public extension Array where Element: Sortable {
 
 ---
 
-## Rejection Criteria
+## Rejection criteria
 
 Follow the core rejection criteria from stratos-core:
 - **Stringly-Typed APIs**: Use enums instead of strings
@@ -366,9 +366,9 @@ See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for cor
 
 ---
 
-## Common Tasks
+## Common tasks
 
-### Designing a Public API
+### Designing a public API
 
 1. **Call site first**: Write the ideal usage before implementation
 2. **Start simple**: Troposphere-level API that works out of the box
@@ -376,7 +376,7 @@ See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for cor
 4. **Document stability**: Mark @stable/@unstable APIs
 5. **Provide extension points**: Allow customization
 
-### Adding Concurrency to Existing Code
+### Adding concurrency to existing code
 
 1. **Identify blocking operations**: I/O, network, file system
 2. **Create async equivalents**: `func fetch() async throws -> T`
@@ -393,12 +393,12 @@ See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for cor
 
 ---
 
-## See Also
+## See also
 
 - [stratos-core](../stratos-core/SKILL.md) — Core methodology
 - [references/LAYERS.md](references/LAYERS.md) — Detailed layer implementation
 - [stratos-swiftui](../stratos-swiftui/SKILL.md) — SwiftUI implementation
 
-## Further Reading
+## Further reading
 
 - [On Progressive Disclosure in Swift](https://www.youtube.com/watch?v=opqKGgJavkw) (Swift Craft 2025) — Doug Gregor explains how Swift applies Progressive Disclosure to language design, including Typed Throws, Non-Copyable Types, and concurrency evolution.

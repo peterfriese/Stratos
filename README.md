@@ -1,7 +1,7 @@
 # Stratos
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0-blue.svg)](stratos-core/SKILL.md)
+[![Version](https://img.shields.io/badge/version-1.1-blue.svg)](stratos-core/SKILL.md)
 
 AI Agent Skills for High-End API Design following the principle of Progressive Disclosure.
 
@@ -15,7 +15,7 @@ AI Agent Skills for High-End API Design following the principle of Progressive D
 
 ## Installation
 
-### Install All Skills
+### Install all skills
 
 ```bash
 npx skills add peterfriese/Stratos
@@ -23,7 +23,7 @@ npx skills add peterfriese/Stratos
 
 This will prompt you to select which skills to install.
 
-### Install Individual Skills
+### Install individual skills
 
 ```bash
 # Core methodology
@@ -48,7 +48,7 @@ Stratos follows the principle of **Progressive Disclosure** — APIs should be s
 
 See [stratos-core/SKILL.md](stratos-core/SKILL.md) for the full methodology.
 
-## Quick Start
+## Quick start
 
 **When to use each skill:**
 
@@ -56,7 +56,20 @@ See [stratos-core/SKILL.md](stratos-core/SKILL.md) for the full methodology.
 - **stratos-swiftui**: When building reusable SwiftUI components, ViewModifiers, or custom Styles
 - **stratos-swift**: When creating Swift libraries, SDKs, or implementing Swift 6 concurrency patterns
 
-## Further Reading
+## What's new in 1.1
+
+**2026-07-25:** Aligned stratos-swiftui with Apple's Xcode 27 guidance.
+
+- `@MainActor` added to `@Observable` examples for Swift 6 concurrency safety
+- Replaced manual `EnvironmentKey` boilerplate with modern `@Entry` macro
+- Replaced deprecated APIs: `.foregroundColor` → `.foregroundStyle`, `.cornerRadius` → `.clipShape(RoundedRectangle(...))`
+- Added rejection criteria for `.if()` conditional modifier anti-pattern
+- Added SDK 27 compatibility notes (`@State` macro migration, `@ContentBuilder` unification)
+- Added `@Animatable` macro and `@Observable`+`Equatable` guidance
+
+See [docs/JOURNAL.md](docs/JOURNAL.md) for the full change log.
+
+## Further reading
 
 - [The craft of SwiftUI API design: Progressive disclosure](https://developer.apple.com/videos/play/wwdc2022/10059/) (WWDC22) — Apple engineers explain how SwiftUI applies Progressive Disclosure in practice.
 - [On Progressive Disclosure in Swift](https://www.youtube.com/watch?v=opqKGgJavkw) (Swift Craft 2025) — Doug Gregor explains how Swift applies Progressive Disclosure as a language design principle.

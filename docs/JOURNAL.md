@@ -6,6 +6,51 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 ## Implementation Journey
 
+### Entry 12: Cross-Skill Audit Against Xcode 27 Skills (2026-07-25)
+
+**Problem:** Audit of Apple's Xcode 27 Beta 4 skills (`swiftui-specialist`, `swiftui-whats-new-27`) revealed contradictions and outdated patterns in `stratos-swiftui/`.
+
+**Fixes applied to stratos-swiftui/SKILL.md:**
+
+1. **Pattern 2 — `@MainActor` on `@Observable` class:** Added `@MainActor` to `UserViewModel` for Swift 6 strict concurrency safety. Observable classes used in views must run on the main actor.
+
+2. **Pattern 4 — `@Entry` macro replacement:** Replaced manual `EnvironmentKey` boilerplate with the `@Entry` macro — Apple's canonical approach since iOS 18/macOS 15.
+
+3. **Pattern 5 — Soft-deprecated API replacements:**
+   - `.foregroundColor(.white)` → `.foregroundStyle(.white)`
+   - `.cornerRadius(8)` → `.clipShape(RoundedRectangle(cornerRadius: 8))`
+
+4. **Rejection criteria:** Added entry rejecting conditional `.if()` view modifier extensions — Apple explicitly warns against this pattern.
+
+5. **SDK 27 note:** Added compatibility note about `@State` property wrapper → macro migration.
+
+6. **Core Principles:** Added `@Animatable` macro mention.
+
+7. **Pattern 2 — `@Observable` + `Equatable`:** Added guidance note on combining `@Observable` with `Equatable` conformance.
+
+**Fixes applied to stratos-swiftui/references/LAYERS.md:**
+
+1. Replaced manual `EnvironmentKey` boilerplate with `@Entry` macro
+2. Replaced 3× `.foregroundColor()` → `.foregroundStyle()`
+3. Replaced 3× `.cornerRadius()` → `.clipShape(RoundedRectangle(cornerRadius:))`
+
+**Source used:**
+Apple's Xcode 27 Beta 4 skills extracted from:
+```
+/Applications/Xcode-27.0.0-Beta.4.app/Contents/PlugIns/IDEIntelligenceChat.framework/Versions/A/Resources/
+```
+Specifically: `swiftui-specialist` (`dataflow.md`, `modifiers.md`, `soft-deprecated-apis.md`) and `swiftui-whats-new-27` (`state-macro.md`).
+
+**What we learned:**
+- Apple's `@Entry` macro (iOS 18+) makes manual `EnvironmentKey` boilerplate legacy — treat `@Entry` as the default
+- `@Observable` classes used in views MUST be marked `@MainActor` for Swift 6 concurrency safety
+- `.foregroundColor()` and `.cornerRadius()` are soft-deprecated; `foregroundStyle()` and `clipShape(RoundedRectangle(...))` are the replacements
+- Apple explicitly rejects `.if()` conditional modifier extensions — this belongs in Stratos's rejection criteria
+- `@State` migrated from property wrapper to macro in SDK 27 — reordering init assignments is the WRONG fix
+- The `.packaged` and `.idechatprompttemplate` formats inside Xcode's skill bundles are plain UTF-8 markdown, not binary formats
+
+---
+
 ### Entry 1: Initial Setup (2025-05-12)
 
 **What we did:**

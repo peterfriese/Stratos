@@ -28,11 +28,11 @@ Progressive Disclosure means:
 
 ---
 
-## The Four Layers
+## The four layers
 
 The Stratos methodology defines four levels of API complexity, each with specific implementation patterns:
 
-### Layer 1: The Troposphere (Surface Area)
+### Layer 1: the troposphere (surface area)
 
 **Focus**: Zero-config usage.
 
@@ -49,7 +49,7 @@ Button("Submit") {
 
 ---
 
-### Layer 2: The Stratosphere (Customization)
+### Layer 2: the stratosphere (customization)
 
 **Focus**: Targeted adjustments.
 
@@ -68,7 +68,7 @@ Button("Submit") {
 
 ---
 
-### Layer 3: The Mesosphere (Environment)
+### Layer 3: the mesosphere (environment)
 
 **Focus**: Hierarchical configuration.
 
@@ -95,7 +95,7 @@ struct MyView: View {
 
 ---
 
-### Layer 4: The Thermosphere (Advanced)
+### Layer 4: the thermosphere (advanced)
 
 **Focus**: Dependency injection and deep overrides.
 
@@ -120,7 +120,7 @@ Button("Submit") { }
 
 ---
 
-## The Laws of Physics
+## The laws of physics
 
 All Stratos skills must follow these fundamental rules:
 
@@ -194,11 +194,11 @@ func fillStyle(_: .gradient)
 
 ---
 
-## Rejection Criteria
+## Rejection criteria
 
 Stratos-core must **reject** the following anti-patterns:
 
-### Boolean Traps
+### Boolean traps
 
 **Anti-pattern**: Boolean parameters that change behavior in non-obvious ways.
 
@@ -235,7 +235,7 @@ enum Size { case small, medium, large }
 
 ---
 
-### Default Mutation
+### Default mutation
 
 **Anti-pattern**: Methods that mutate state as a side effect rather than returning new values.
 
@@ -253,7 +253,7 @@ let config = Config()
 
 ---
 
-## Activation Triggers
+## Activation triggers
 
 Activate stratos-core when:
 
@@ -265,12 +265,12 @@ Activate stratos-core when:
 
 ---
 
-## See Also
+## See also
 
 - [stratos-swiftui](../stratos-swiftui/SKILL.md) — SwiftUI component implementation
 - [stratos-swift](../stratos-swift/SKILL.md) — Swift library implementation
 
-## Further Reading
+## Further reading
 
 - [On Progressive Disclosure in Swift](https://www.youtube.com/watch?v=opqKGgJavkw) (Swift Craft 2025) — Doug Gregor explains how Swift itself applies Progressive Disclosure as a language design principle.
 - [The craft of SwiftUI API design: Progressive disclosure](https://developer.apple.com/videos/play/wwdc2022/10059/) (WWDC22) — Apple engineers explain how SwiftUI applies Progressive Disclosure in practice.

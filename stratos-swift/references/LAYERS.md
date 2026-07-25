@@ -4,9 +4,9 @@ Detailed implementation guidance for each of the four Stratos layers in Swift li
 
 ---
 
-## Layer 1: Troposphere — Sensible Defaults
+## Layer 1: Troposphere — sensible defaults
 
-### Implementation Guidelines
+### Implementation guidelines
 
 Troposphere-level APIs should work immediately with zero configuration:
 
@@ -25,13 +25,13 @@ struct HTTPClient {
 let client = HTTPClient(baseURL: URL(string: "https://api.example.com")!)
 ```
 
-### What Belongs Here
+### What belongs here
 
 - Required data (baseURL, endpoints)
 - Sensible defaults (timeout: 30, retries: 3)
 - Single initializer with max 3-4 parameters
 
-### What Doesn't Belong
+### What doesn't belong
 
 - Optional configuration
 - Platform-specific behavior
@@ -39,9 +39,9 @@ let client = HTTPClient(baseURL: URL(string: "https://api.example.com")!)
 
 ---
 
-## Layer 2: Stratosphere — Configuration
+## Layer 2: Stratosphere — configuration
 
-### Implementation Patterns
+### Implementation patterns
 
 ```swift
 // Pattern 1: Configuration struct
@@ -81,9 +81,9 @@ let client = HTTPClient(baseURL: url)
 
 ---
 
-## Layer 3: Mesosphere — Dependency Injection
+## Layer 3: Mesosphere — dependency injection
 
-### When to Use DI
+### When to use DI
 
 Use for:
 - **External dependencies**: Network clients, storage
@@ -95,7 +95,7 @@ Don't use for:
 - **Configuration**: Use config structs (Layer 2)
 - **Ephemeral state**: Use local variables
 
-### Implementation Pattern
+### Implementation pattern
 
 ```swift
 // Protocol for dependency
@@ -139,9 +139,9 @@ final class MockHTTPClient: HTTPClientProtocol {
 
 ---
 
-## Layer 4: Thermosphere — Deep Customization
+## Layer 4: Thermosphere — deep customization
 
-### When to Use
+### When to use
 
 Thermosphere is for power users who need full control. Most library users should stop at Layer 2-3.
 
@@ -150,7 +150,7 @@ Use for:
 - Plugin architectures
 - Advanced middleware/chaining
 
-### Example: Middleware Chain
+### Example: Middleware chain
 
 ```swift
 protocol HTTPMiddleware {
@@ -177,7 +177,7 @@ config.middlewares = [AuthMiddleware(token: "..."), LoggingMiddleware()]
 let client = HTTPClient(baseURL: url, config: config)
 ```
 
-### Example: Custom Serialization
+### Example: Custom serialization
 
 ```swift
 protocol JSONDecoderProtocol {
@@ -199,7 +199,7 @@ struct CustomDecoder: JSONDecoderProtocol {
 
 ---
 
-## Layer Escalation Decision Tree
+## Layer escalation decision tree
 
 ```
 Does the library have a common use case?
@@ -220,9 +220,9 @@ Does the library have a common use case?
 
 ---
 
-## Anti-Patterns
+## Anti-patterns
 
-### Configuration Explosion
+### Configuration explosion
 
 ```swift
 // BAD: Too many parameters
@@ -244,7 +244,7 @@ init(baseURL: URL)  // Required
 .cache(enabled: true, size: 100)  // Grouped
 ```
 
-### Leaky Abstractions
+### Leaky abstractions
 
 ```swift
 // BAD: Exposing internal types
@@ -259,7 +259,7 @@ public protocol ClientProtocol {
 }
 ```
 
-### Global State
+### Global state
 
 ```swift
 // BAD: Global mutable state
@@ -273,7 +273,7 @@ struct Service {
 
 ---
 
-## Swift 6 Migration Checklist
+## Swift 6 migration checklist
 
 - [ ] Enable strict concurrency checking
 - [ ] Add `Sendable` to public structs/enums
@@ -285,7 +285,7 @@ struct Service {
 
 ---
 
-## Further Reading
+## Further reading
 
 - [Swift.org Concurrency](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/)
 - [Swift Evolution SE-0303](https://github.com/apple/swift-evolution/blob/main/proposals/0303-actor-isolation.md) — Actor isolation
