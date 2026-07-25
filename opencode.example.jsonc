@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode-go/deepseek-v4-flash",
+  "autoupdate": true,
+  "provider": {
+    "opencode": {
+      "options": {
+        "apiKey": "Your API Key Here"
+      }
+    },
+    "opencode-go": {
+      "options": {
+        "apiKey": "Your API Key Here"
+      }
+    }
+  },
+  "agent": {
+    "build": {
+      "disable": true
+    },
+    "plan": {
+      "disable": true
+    },
+    "chief-of-staff": {
+      "mode": "primary",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "task": {
+          "*": "allow"
+        }
+      }
+    }
+  }
+}
