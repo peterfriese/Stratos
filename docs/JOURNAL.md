@@ -11,6 +11,7 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 **What changed:**
 - Verified Stratos is already listed on skills.sh (skills.sh/peterfriese/stratos) — no manual submission exists; listing happens automatically via anonymous telemetry when users run `npx skills add peterfriese/Stratos`. Repo page shows 3 skills, 18 installs.
 - Added the official skills.sh badge to README.md header: `[![skills.sh](https://skills.sh/b/peterfriese/Stratos)](https://skills.sh/peterfriese/Stratos)` (commit bf28a51, "docs: add skills.sh badge to README").
+- Restyled the License and Version shields.io badges to dark flat style (labelColor=000000, color=0a0a0a) so all three header badges match skills.sh's branded badge.
 - Added a rule to AGENTS.md "Prohibited Patterns": never commit `xcode-skills/` (personal reference material, kept local-only via .gitignore).
 - Confirmed via `git ls-files` that xcode-skills/ was never tracked (gitignored from the start) — no untrack action needed; `.gitignore` already had the entry.
 - Verified CLI discovery with `npx skills add peterfriese/Stratos --list` — finds exactly 3 skills (stratos-core, stratos-swift, stratos-swiftui).
@@ -24,6 +25,7 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 - skills.sh has NO manual submission process — repos are listed automatically once anyone installs them via the `skills` CLI (telemetry-driven leaderboard). "Adding" a skill = driving CLI installs, not filling out a form.
 - skills.sh's CLI discovers skills by scanning well-known container dirs (skills/, .claude/skills/, .agents/skills/, etc.) with a recursive fallback; the 3 stratos-* dirs are found via the fallback.
 - xcode-skills/ skills were never exposed on skills.sh because the directory was never committed — it is local-only personal reference.
+- shields.io badges can closely match skills.sh's custom badge by setting `labelColor=000000` and `color=0a0a0a` (same hex values skills.sh uses); the only element that cannot be reproduced is the Vercel triangle logo.
 
 ---
 
