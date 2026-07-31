@@ -6,6 +6,27 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 ## Implementation Journey
 
+### Entry 13: Distribution on skills.sh (2026-07-31)
+
+**What changed:**
+- Verified Stratos is already listed on skills.sh (skills.sh/peterfriese/stratos) — no manual submission exists; listing happens automatically via anonymous telemetry when users run `npx skills add peterfriese/Stratos`. Repo page shows 3 skills, 18 installs.
+- Added the official skills.sh badge to README.md header: `[![skills.sh](https://skills.sh/b/peterfriese/Stratos)](https://skills.sh/peterfriese/Stratos)` (commit bf28a51, "docs: add skills.sh badge to README").
+- Added a rule to AGENTS.md "Prohibited Patterns": never commit `xcode-skills/` (personal reference material, kept local-only via .gitignore).
+- Confirmed via `git ls-files` that xcode-skills/ was never tracked (gitignored from the start) — no untrack action needed; `.gitignore` already had the entry.
+- Verified CLI discovery with `npx skills add peterfriese/Stratos --list` — finds exactly 3 skills (stratos-core, stratos-swift, stratos-swiftui).
+- Ran `swift scripts/validate-skills.swift` — all validations passed.
+- Changes are committed locally on main but NOT yet pushed.
+
+**Why it changed:**
+- Newsletter mention drove GitHub stars 0→12; wanted more distribution. skills.sh ranks by install count, so visibility = people running the install command; the badge adds cross-linking and install-count proof on the README.
+
+**What we learned:**
+- skills.sh has NO manual submission process — repos are listed automatically once anyone installs them via the `skills` CLI (telemetry-driven leaderboard). "Adding" a skill = driving CLI installs, not filling out a form.
+- skills.sh's CLI discovers skills by scanning well-known container dirs (skills/, .claude/skills/, .agents/skills/, etc.) with a recursive fallback; the 3 stratos-* dirs are found via the fallback.
+- xcode-skills/ skills were never exposed on skills.sh because the directory was never committed — it is local-only personal reference.
+
+---
+
 ### Entry 12: Cross-Skill Audit Against Xcode 27 Skills (2026-07-25)
 
 **Problem:** Audit of Apple's Xcode 27 Beta 4 skills (`swiftui-specialist`, `swiftui-whats-new-27`) revealed contradictions and outdated patterns in `stratos-swiftui/`.
