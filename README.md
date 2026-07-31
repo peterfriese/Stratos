@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.1-blue.svg)](stratos-core/SKILL.md)
+[![skills.sh](https://skills.sh/b/peterfriese/Stratos)](https://skills.sh/peterfriese/Stratos)
 
 AI Agent Skills for High-End API Design following the principle of Progressive Disclosure.
 

@@ -157,6 +157,7 @@ After completing any task, update relevant docs:
 - Never add boilerplate to SKILL.md (introductions, filler, motivational text)
 - Never create files outside the established `stratos-*/` structure
 - Never write to `AGENTS.md` directly from a subagent — route through the Chief of Staff
+- Never commit `xcode-skills/` — personal reference material, kept local-only via `.gitignore`
 
 ### 5. When to Delegate to Subagents
 
