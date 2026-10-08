@@ -4,78 +4,92 @@ Detailed implementation guidance for each of the four Stratos layers in SwiftUI 
 
 ---
 
-## Layer 1: Troposphere — zero-config defaults
+## Layer 1: Troposphere — Zero-Config Defaults
 
-### Implementation guidelines
+### Implementation Guidelines
 
-Troposphere-level components should work with zero configuration:
+Troposphere-level components work immediately with zero configuration:
 
 ```swift
-// Minimal viable component
 struct StatusBadge: View {
     let status: Status
 
     var body: some View {
         Text(status.displayName)
+            .font(.caption.weight(.medium))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(status.color.opacity(0.2))
+            .background(status.color.opacity(0.2), in: RoundedRectangle(cornerRadius: 6))
             .foregroundStyle(status.color)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
 // Usage: StatusBadge(status: .active) — works immediately
 ```
 
-### What belongs here
+### What Belongs Here
 
-- Required data (the "what")
+- Required data and identity (the "what")
+- `@ViewBuilder` content closures and `LocalizedStringKey` convenience initializers
 - Sensible defaults that work in 90% of cases
-- Single initializer with max 3-4 parameters
+- Single primary initializer with at most 3–4 parameters
 
-### What doesn't belong
+### What Doesn't Belong
 
-- Optional styling options
-- Configuration variants
+- Optional visual styling (colors, padding, shadows)
+- Configuration variants (→ Layer 2)
 - Theme-dependent values (→ Layer 3)
 
 ---
 
-## Layer 2: Stratosphere — targeted adjustments
+## Layer 2: Stratosphere — Targeted Adjustments
 
-### Implementation guidelines
+### Implementation Guidelines
 
-Stratosphere uses ViewModifiers for targeted customization:
+Stratosphere uses `ViewModifier` or `View` extensions for targeted, semantic customization:
 
 ```swift
+enum CardElevation {
+    case flat, raised, floating
+
+    var radius: CGFloat {
+        switch self {
+        case .flat: 0
+        case .raised: 6
+        case .floating: 16
+        }
+    }
+}
+
 extension View {
-    func badgeStyle(_ style: BadgeStyle) -> some View {
-        self.modifier(BadgeStyleModifier(style: style))
+    func badgeProminence(_ prominence: BadgeProminence) -> some View {
+        environment(\.badgeProminence, prominence)
     }
 
-    func shadowRadius(_ radius: CGFloat) -> some View {
-        self.shadow(radius: radius)
+    func cardElevation(_ elevation: CardElevation) -> some View {
+        shadow(
+            color: .black.opacity(elevation == .flat ? 0 : 0.12),
+            radius: elevation.radius,
+            y: elevation.radius / 2
+        )
     }
 }
 ```
 
-### Modifier design rules
+### Modifier Design Rules
 
-1. **Independent**: Each modifier should work alone
-2. **Composable**: Order shouldn't matter (unless it does—document it)
-3. **Discoverable**: Name should match SwiftUI conventions
-4. **Intent over Implementation**: Name the effect, not the method
-
-### Examples of good modifiers
+1. **Independent**: Each modifier works alone without requiring companion modifiers.
+2. **Composable**: Applying multiple modifiers produces predictable, additive behavior.
+3. **Discoverable**: Parameter types use enums or static members for leading-dot autocomplete.
+4. **Intent over Implementation**: Name the semantic effect, not the drawing primitive.
 
 ```swift
-// Good: Describes what developer wants
-.fontWeight(.prominent)
+// GOOD: Describes semantic intent
+.badgeProminence(.increased)
 .cardElevation(.raised)
-.statusColor(.success)
+.statusTone(.warning)
 
-// Bad: Describes how it's implemented
+// BAD: Exposes raw mechanism or boolean flags
 .setBold(true)
 .shadowRadius(8)
 .backgroundColor(.blue)
@@ -83,41 +97,48 @@ extension View {
 
 ---
 
-## Layer 3: Mesosphere — environment configuration
+## Layer 3: Mesosphere — Environment Configuration
 
-### When to use EnvironmentKeys
+### When to Use `EnvironmentValues` (`@Entry`)
 
 Use Environment for:
-- **Themes**: colors, typography, spacing
-- **Localization**: text direction, locale-specific formatting
-- **Feature flags**: beta features, experimental APIs
-- **User preferences**: accessibility settings, display modes
+- **Themes**: semantic color palettes, typography scales, corner radii
+- **Component Policies**: badge prominence, control density, redaction reasons
+- **Feature Flags & Preferences**: user display modes, layout direction
 
-Don't use Environment for:
-- **Dependency injection** (use protocols)
-- **Ephemeral state** (use @State)
-- **Cross-cutting concerns** (too broad)
+Do not use Environment for:
+- **Ephemeral view state** (use `@State`)
+- **Two-way model bindings** (use `@Bindable`)
+- **Imperative service locators** where explicit protocol injection or `@Observable` models are clearer
 
-### Implementation pattern
+### Implementation Pattern
 
 ```swift
 extension EnvironmentValues {
-    @Entry var theme: Theme = Theme.light
+    @Entry var theme: Theme = .light
+}
+
+extension View {
+    func theme(_ theme: Theme) -> some View {
+        environment(\.theme, theme)
+    }
 }
 ```
 
-The `@Entry` macro (iOS 18+/macOS 15+) replaces the manual `EnvironmentKey` boilerplate. No need for a separate key struct, computed getter/setter, or default value wrapper.
+The `@Entry` macro (iOS 18+ / macOS 15+) replaces manual `EnvironmentKey` structs and getter/setter boilerplate.
 
-### Reading from environment
+### Reading from Environment
 
 ```swift
-struct MyComponent: View {
-    @Environment(\.theme) var theme
+struct ThemedBanner: View {
+    let title: LocalizedStringKey
+    @Environment(\.theme) private var theme
 
     var body: some View {
-        Text("Hello")
+        Text(title)
+            .padding()
             .foregroundStyle(theme.primaryColor)
-            .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
+            .background(theme.surfaceColor, in: RoundedRectangle(cornerRadius: theme.cornerRadius))
     }
 }
 ```
@@ -126,131 +147,135 @@ struct MyComponent: View {
 
 ## Layer 4: Thermosphere — Style Protocols
 
-### When to use style protocols
+### When to Use Style Protocols
 
-Thermosphere is for **power users** who need full control. Most developers should stop at Layer 2-3.
+Thermosphere is for **power users** who need full control over a component's structure and interaction states. Most callers should stop at Layers 1–3.
 
 Use Style protocols when:
-- The component has multiple customizable aspects that are conceptually grouped
-- You want to enable "themes" that affect many properties at once
-- The customization surface is too large for individual modifiers
+- A component has multiple sub-elements or interaction states (`isPressed`, `isExpanded`, `role`) that custom designs need to rearrange
+- You want third-party consumers to create completely bespoke visual representations while keeping the component's accessibility and state machine intact
 
-### ButtonStyle example
+### Conforming to Built-In Apple Style Protocols
 
 ```swift
-struct ProminentButtonStyle: ButtonStyle {
+struct ProminentScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
             .background(
-                configuration.isPressed
-                    ? Color.blue.opacity(0.8)
-                    : Color.blue
+                configuration.isPressed ? Color.blue.opacity(0.8) : Color.blue,
+                in: RoundedRectangle(cornerRadius: 10)
             )
             .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == ProminentScaleButtonStyle {
+    static var prominentScale: ProminentScaleButtonStyle { ProminentScaleButtonStyle() }
+}
+```
+
+### Building a Complete Custom Style Protocol for Your Own Component
+
+To wire a custom `CardStyle` inside your `Card` view, resolve the existential `any CardStyle` from the environment using a helper method that opens the existential into `some CardStyle`:
+
+```swift
+struct Card<Content: View>: View {
+    private let content: Content
+    @Environment(\.cardStyle) private var style
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        let configuration = CardStyleConfiguration(
+            content: .init(body: AnyView(content))
+        )
+        AnyView(resolveStyle(style, configuration: configuration))
+    }
+
+    @MainActor
+    private func resolveStyle<S: CardStyle>(
+        _ style: S,
+        configuration: CardStyleConfiguration
+    ) -> some View {
+        style.makeBody(configuration: configuration)
     }
 }
 ```
 
-### LabelStyle example
+---
+
+## Layer Escalation Decision Tree
+
+```
+Does a zero-config default work for 90% of call sites?
+├─ NO  → Refine Layer 1 (Troposphere) until only essential data is required
+└─ YES → Do callers need to tweak individual instances?
+          ├─ NO  → Stop at Layer 1
+          └─ YES → Expose semantic modifiers in Layer 2 (Stratosphere)
+                    │
+                    └─ Should tweaks cascade down a view hierarchy?
+                        ├─ NO  → Stop at Layer 2
+                        └─ YES → Propagate via @Entry in Layer 3 (Mesosphere)
+                                  │
+                                  └─ Do power users need to replace internal layout/structure?
+                                      ├─ NO  → Stop at Layer 3
+                                      └─ YES → Define a *Style protocol in Layer 4 (Thermosphere)
+```
+
+---
+
+## Anti-Patterns
+
+### Over-Engineering (Premature Thermosphere)
 
 ```swift
-struct IconLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 8) {
-            configuration.icon
-                .font(.title3)
-            configuration.title
-                .font(.body)
-        }
+// BAD: Creating a full Style protocol when a single semantic modifier suffices
+protocol HeadingTextStyle { ... }
+
+// GOOD: Use a semantic Layer 2 modifier
+Text("Welcome").textRole(.heroTitle)
+```
+
+### Conditional `.if()` Modifier Trap
+
+```swift
+// BAD: Destroys view identity and state when `isHighlighted` toggles
+Text("Status")
+    .if(isHighlighted) { view in
+        view.foregroundStyle(.red)
     }
-}
+
+// GOOD: Keep structural identity stable with inert/ternary values
+Text("Status")
+    .foregroundStyle(isHighlighted ? .red : .primary)
 ```
 
-### Style composition
+### Modifier Explosion
 
 ```swift
-// Use with modifier
-Button("Hello") { }
-    .buttonStyle(ProminentButtonStyle())
-
-// Or apply at the view hierarchy level
-Label("Title", systemImage: "star")
-    .labelStyle(IconLabelStyle())
-```
-
----
-
-## Layer escalation decision tree
-
-```
-Is there a default that works for 90% of cases?
-├─ NO → Start at Layer 1 (Troposphere)
-└─ YES → Can developers customize common aspects?
-          ├─ NO → Layer 1 is sufficient
-          └─ YES → Do customizations vary by context/hierarchy?
-                    ├─ NO → Layer 2 (Stratosphere) via modifiers
-                    └─ YES → Do customizations need theming?
-                              ├─ NO → Layer 2
-                              └─ YES → Layer 3 (Mesosphere) via Environment
-```
-
-**Only escalate to Layer 4 (Thermosphere) when:**
-- Layer 2-3 patterns have been proven insufficient
-- The use case genuinely requires protocol-based customization
-- You're building a system meant for third-party extension
-
----
-
-## Anti-patterns
-
-### Over-engineering
-
-```swift
-// BAD: Creating a Style when a simple modifier would suffice
-struct SimpleTextStyle: TextStyle { ... }  // Overkill
-
-// GOOD: Just use .fontWeight()
-Text("Hello").fontWeight(.prominent)
-```
-
-### Environment abuse
-
-```swift
-// BAD: Using Environment for dependency injection
-struct NetworkClient: EnvironmentKey {
-    static let defaultValue: NetworkClientProtocol = RealClient()
-}
-
-// GOOD: Use protocols for DI
-protocol NetworkClientProtocol { ... }
-```
-
-### Modifier explosion
-
-```swift
-// BAD: Too many modifiers that should be grouped
-Text("Hello")
+// BAD: Too many low-level modifiers that must always be chained together
+Text("Title")
     .fontSize(14)
     .fontWeight(.bold)
-    .fontFamily(.system)
     .lineSpacing(1.5)
     .letterSpacing(0.5)
 
-// GOOD: Use existing SwiftUI .font() modifier
-Text("Hello")
-    .font(.system(size: 14, weight: .bold, design: .default))
+// GOOD: Group cohesive typography tokens into a single semantic modifier or theme token
+Text("Title")
+    .textStyle(.captionProminent)
 ```
 
 ---
 
-## Further reading
+## Further Reading
 
-- Apple's [Styling Views](https://developer.apple.com/documentation/swiftui/view-styling) documentation
-- [SwiftUI Style Protocols](https://developer.apple.com/documentation/swiftui/buttonstyle) guide
-- [EnvironmentValues](https://developer.apple.com/documentation/swiftui/environmentvalues) pattern
+- [Styling Views](https://developer.apple.com/documentation/swiftui/view-styling) — Apple Developer Documentation
+- [ButtonStyle](https://developer.apple.com/documentation/swiftui/buttonstyle) — Apple Developer Documentation
+- [EnvironmentValues](https://developer.apple.com/documentation/swiftui/environmentvalues) — Apple Developer Documentation
