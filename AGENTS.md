@@ -59,9 +59,12 @@ swift scripts/validate-skills.swift
 ```
 
 This validates:
-- YAML frontmatter format
-- Name format (lowercase, hyphens)
+- YAML frontmatter format (`name`, `description`, `metadata.author`, `metadata.version`)
+- Name format (lowercase, hyphens, max 64 chars, matches parent directory)
 - Description length (1-1024 chars)
+- Required section presence and order (`Role` → `Activation Triggers` → `Core Principles` → `Common Tasks` → `Rejection Criteria` → `See Also`)
+- Line count budget (warns at >350 lines, errors at >500 lines)
+- Relative Markdown links in `SKILL.md` and `references/*.md`
 - References structure (flat, one level deep)
 
 ## Documentation Rule
