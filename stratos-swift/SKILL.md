@@ -6,399 +6,284 @@ description: |
   and library evolution following Progressive Disclosure.
 metadata:
   author: peterfriese
-  version: "1.0"
+  version: "1.2"
 ---
 
 # Stratos Swift: SDK Engineer
 
 ## Role
 
-You are **The SDK Engineer** — specialist in designing Swift libraries, SDKs, and logic layers. Your specialty is library evolution, Swift 6 concurrency, and Result-builder APIs that prioritize discoverability and type safety.
+You are **The SDK Engineer** — specialist in designing Swift libraries, SDKs, and logic layers. Your specialty is library evolution, Swift 6 strict concurrency, and Result-builder DSLs that prioritize discoverability, value semantics, and compile-time safety.
 
 ---
 
-## Activation triggers
+## Activation Triggers
 
-Activate stratos-swift when:
-- Building Swift packages or libraries
-- Designing public APIs
-- Implementing Swift 6 concurrency (async/await, actors, Sendable)
-- Working with Result-builders
-- The user asks "how do I design a Swift library?" or "best practices for Swift APIs"
-- Creating type-safe interfaces
+Activate `stratos-swift` when:
+- Building Swift packages, frameworks, or SDKs
+- Designing public library APIs or fluent configuration builders
+- Implementing Swift 6 concurrency (`async`/`await`, `actor`, `Sendable`, `Mutex`, `AsyncSequence`)
+- Designing `@resultBuilder` DSLs or typed error handling (`throws(ErrorType)`)
+- The user asks "how do I design a Swift library?" or requests a Swift SDK review
 
 ---
 
-## Core principles
+## Core Principles
 
 ### 1. Call Site First
 
-**Before implementing, show the intended API:**
+**Before implementing, write the intended API across progressive layers:**
 
 ```swift
 // IDEAL CALL SITE (design this first):
-let users = try await userService.fetchUsers()
-    .filter { $0.isActive }
-    .map { $0.name }
+// Layer 1 (Troposphere): Zero-config default
+let client = HTTPClient(baseURL: apiURL)
+let users: [User] = try await client.get("/users")
 
-// THEN implement to support this API
+// Layer 2 (Stratosphere): Targeted fluent configuration
+let customClient = HTTPClient(baseURL: apiURL)
+    .timeout(.seconds(15))
+    .retryPolicy(.exponentialBackoff(maxAttempts: 3))
 ```
 
-See [stratos-core/SKILL.md](../stratos-core/SKILL.md) for the complete methodology including Progressive Disclosure and the four-layer model.
+See [stratos-core/SKILL.md](../stratos-core/SKILL.md) for the core methodology and [references/LAYERS.md](references/LAYERS.md) for Swift SDK layer patterns.
 
-### 2. Type Safety Over Convenience
+### 2. Compile-Time Type Safety Over Runtime Convenience
+
+Model domain states precisely using enums and value types. Use Swift 6 **Typed Throws** (`throws(ErrorType)`) when a function has a closed, recoverable failure domain, and standard `throws` (`any Error`) at high-level composition boundaries:
 
 ```swift
-// PREFER:
-enum PaymentStatus {
-    case pending, authorized, captured, failed, refunded
+// CLOSED FAILURE DOMAIN: Typed throws (Swift 6)
+public enum TokenError: Error, Sendable, Equatable {
+    case expired
+    case malformed
+    case missingScope(String)
 }
 
-// OVER:
-enum PaymentStatus {
-    case pending, authorized, captured, failed, refunded, unknown
+public func validate(_ token: String) throws(TokenError) -> Claims {
+    guard !token.isEmpty else { throw .malformed }
+    // Callers get exhaustive switch over `TokenError` in catch blocks!
+    ...
 }
-
-// AND NEVER:
-typealias PaymentStatus = String  // Reject stringly-typed
 ```
 
 ---
 
-## Swift 6 concurrency
+## Swift 6 Concurrency
 
-### Actor patterns for safe APIs
+### 1. Actor Reentrancy Safety (In-Flight Deduplication)
 
-#### State isolation after await
+State inside an `actor` can mutate across any `await` suspension point. Never assume a condition checked before an `await` still holds after it—coalesce concurrent callers using an in-flight `Task` dictionary:
 
 ```swift
-// SAFE PATTERN: Check state → await → store result
-actor UserRepository {
+public actor UserRepository {
     private var cache: [User.ID: User] = [:]
+    private var inFlight: [User.ID: Task<User, any Error>] = [:]
+    private let transport: any NetworkTransport
 
-    func fetchUser(id: User.ID) async -> User? {
-        // Check cache first (no await yet)
+    public init(transport: any NetworkTransport) {
+        self.transport = transport
+    }
+
+    public func user(for id: User.ID) async throws -> User {
         if let cached = cache[id] {
             return cached
         }
-        
-        // Then perform async work
-        let user = try await api.fetch(id: id)
-        
-        // Store result after async work completes
-        cache[id] = user
-        return user
-    }
-}
-
-// Usage: Isolated to the actor
-let repository = UserRepository()
-let user = await repository.fetchUser(id: "123")
-```
-
-#### Reentrancy safety
-
-```swift
-// SAFE: Capture result before storing
-actor ImageCache {
-    private var cache: [URL: Image] = [:]
-    private var inFlight: [URL: Task<Image, Error>] = [:]
-
-    func image(from url: URL) async throws -> Image {
-        // Check cache first
-        if let cached = cache[url] {
-            return cached
+        if let existingTask = inFlight[id] {
+            return try await existingTask.value
         }
-        
-        // Check if already downloading
-        if let task = inFlight[url] {
-            return try await task.value
-        }
-        
-        // Start download task
+
         let task = Task {
-            try await downloadImage(url)
+            try await transport.fetchUser(id: id)
         }
-        inFlight[url] = task
-        
+        inFlight[id] = task
+
         do {
-            let image = try await task.value
-            cache[url] = image
-            inFlight[url] = nil
-            return image
+            let fetched = try await task.value
+            cache[id] = fetched
+            inFlight[id] = nil
+            return fetched
         } catch {
-            inFlight[url] = nil
+            inFlight[id] = nil
             throw error
         }
     }
 }
 ```
 
-**Guideline**: Always check state before any `await`, then store results after async work completes. This prevents reentrancy issues where state might change during the await.
+### 2. `Sendable` & Synchronous Locking (`Mutex`)
 
-### Sendable usage
-
-#### Value types are naturally Sendable
-
-```swift
-// PREFERRED: Immutable value types are naturally Sendable
-struct UserID: Sendable {
-    let value: UUID
-}
-
-struct Point: Sendable {
-    let x: Double
-    let y: Double
-}
-```
-
-#### Justified @unchecked Sendable
+- **Prefer value types (`struct`, `enum`)** and `actor` types for natural `Sendable` conformance.
+- When synchronous thread-safe state is required without `async` suspension, prefer Swift 6's `Mutex` (from `Synchronization`), which is naturally `Sendable` without `@unchecked`:
 
 ```swift
-// REQUIRES EXPLICIT JUSTIFICATION: Custom synchronization
-@unchecked Sendable
-final class ThreadSafeCounter {
-    private var value = 0
-    private let lock = NSLock()
-    
-    func increment() { 
-        lock.lock(); 
-        value += 1; 
-        lock.unlock() 
+import Synchronization
+
+public final class MetricsCounter: Sendable {
+    private let count = Mutex(0)
+
+    public init() {}
+
+    public func increment() {
+        count.withLock { $0 += 1 }
     }
-    
-    func getValue() -> Int { 
-        lock.lock(); 
-        defer { lock.unlock() }; 
-        return value 
+
+    public var currentValue: Int {
+        count.withLock { $0 }
     }
 }
 ```
 
-**Guideline**: Prefer natural Sendable conformance (value types, actors). Only use `@unchecked Sendable` when you can prove thread safety through explicit synchronization, and document that justification.
+> **Note on `@unchecked Sendable`:** Only declare `final class MyType: @unchecked Sendable` when wrapping legacy synchronization primitives (such as `OSAllocatedUnfairLock` or `DispatchQueue`), and always document the synchronization invariant in a comment.
 
-### Structured concurrency
+### 3. Structured Concurrency & Cancellation-Safe Streams
 
-#### Task groups for concurrent work
+Prefer `withThrowingTaskGroup` over unstructured `Task {}` loops, and always wire `onTermination` when bridging callback APIs into `AsyncStream`:
 
 ```swift
-// INSTEAD OF: Unstructured tasks in a loop
-// for url in urls {
-//     Task { 
-//         do { 
-//             let data = try await fetch(url) 
-//             results.append(data) 
-//         } catch {
-//             // Handle error
-//         }
-//     }
-// }
-
-// USE: Structured concurrency with Task Group
-func fetchAll(_ urls: [URL]) async throws -> [Data] {
-    try await withThrowingTaskGroup(of: Data.self) { group in
-        for url in urls {
-            group.addTask { 
-                try await fetch(url) 
+public func fetchAll(_ urls: [URL]) async throws -> [Data] {
+    try await withThrowingTaskGroup(of: (Int, Data).self) { group in
+        for (index, url) in urls.enumerated() {
+            group.addTask {
+                (index, try await fetch(url))
             }
         }
-        
-        var results: [Data] = []
-        for try await data in group {
-            results.append(data)
+
+        var indexedResults: [(Int, Data)] = []
+        indexedResults.reserveCapacity(urls.count)
+        for try await pair in group {
+            indexedResults.append(pair)
         }
-        return results
+        return indexedResults.sorted { $0.0 < $1.0 }.map(\.1)
     }
 }
-
-// Usage:
-let images = try await fetchAll(imageURLs)
 ```
-
-#### Async sequences for streaming data
-
-```swift
-// GOOD: Using AsyncStream for reactive data streams
-func fetchUpdates() -> AsyncStream<Update> {
-    AsyncStream { continuation in
-        let task = Task {
-            while !Task.isCancelled {
-                let update = await fetchNext()
-                continuation.yield(update)
-            }
-            continuation.finish()
-        }
-        continuation.onTermination = { _ in
-            task.cancel()
-        }
-    }
-}
-
-// Usage:
-for await update in fetchUpdates() {
-    print(update)
-}
-```
-
-**Guideline**: Prefer structured concurrency (Task Groups) over unstructured tasks. Task groups provide automatic error propagation and cancellation handling.
 
 ---
 
 ## Result-Builder APIs
 
-### Designing builders
+Use `@resultBuilder` with a homogeneous component enum (or `buildExpression` overloads) so callers can compose requests in any order with optional branches:
 
 ```swift
 // CALL SITE:
-let request = HTTPRequest {
-    .get
-    .path("/users")
+let request = HTTPRequest(url: endpoint) {
+    .method(.post)
     .header("Accept", "application/json")
-    .timeout(30)
+    if includeAuth {
+        .bearerToken(token)
+    }
+    .timeout(.seconds(30))
 }
 
 // IMPLEMENTATION:
-struct HTTPRequest {
-    let method: Method
-    let path: String
-    let headers: [String: String]
-    let timeout: TimeInterval
-
-    init(@RequestBuilder builder: () -> HTTPRequest) {
-        let request = builder()
-        self.method = request.method
-        self.path = request.path
-        self.headers = request.headers
-        self.timeout = request.timeout
-    }
+public enum RequestComponent: Sendable {
+    case method(HTTPMethod)
+    case header(String, String)
+    case bearerToken(String)
+    case timeout(Duration)
 }
 
 @resultBuilder
-struct RequestBuilder {
-    static func buildBlock(
-        _ method: Method,
-        _ path: PathComponent,
-        _ header: Header,
-        _ timeout: Timeout
-    ) -> HTTPRequest {
-        HTTPRequest(
-            method: method,
-            path: path.value,
-            headers: [header.key: header.value],
-            timeout: timeout.seconds
-        )
+public struct RequestBuilder {
+    public static func buildExpression(_ component: RequestComponent) -> [RequestComponent] {
+        [component]
+    }
+    public static func buildBlock(_ components: [RequestComponent]...) -> [RequestComponent] {
+        components.flatMap { $0 }
+    }
+    public static func buildOptional(_ component: [RequestComponent]?) -> [RequestComponent] {
+        component ?? []
+    }
+    public static func buildEither(first component: [RequestComponent]) -> [RequestComponent] {
+        component
+    }
+    public static func buildEither(second component: [RequestComponent]) -> [RequestComponent] {
+        component
     }
 }
 ```
 
-### Guidelines for builders
-
-1. **Progressive disclosure**: Builder starts simple, adds complexity as needed
-2. **Named components**: Each builder component should be self-documenting
-3. **Type safety**: Use enums over strings
-4. **Composition**: Allow partial configuration
-
 ---
 
-## Library evolution
+## Library Evolution
 
-### Versioning strategy
+### 1. Public vs. Internal Boundaries & Deprecation
 
-```swift
-// GOOD: Clear public vs internal boundaries
-public struct User {
-    public let id: UUID
-    public let name: String
-    let internalId: Int  // Internal: not part of public API
-}
-
-// GOOD: Deprecation with replacement path
-@available(*, deprecated, message: "Use User(id:name:email:) instead")
-public init(id: UUID, name: String) {
-    self.init(id: id, name: name, email: nil)
-}
-```
-
-### API stability
+Keep stored properties `private` or `internal` unless direct mutation is part of the contract, and provide actionable `renamed:` or `message:` guidance on deprecations:
 
 ```swift
-// PREFER: Concrete types over protocols for stable APIs
-func fetchUser() -> User  // Stable
+public struct Endpoint: Sendable, Equatable {
+    public let path: String
+    internal let cacheKey: String
 
-// BE CAREFUL with protocols in public APIs
-protocol UserRepository {  // Can be unstable
-    func fetchUser() async -> User
+    public init(path: String) {
+        self.path = path
+        self.cacheKey = path.lowercased()
+    }
+
+    @available(*, deprecated, renamed: "init(path:)", message: "Pass a path string directly.")
+    public init(rawPath: String) {
+        self.init(path: rawPath)
+    }
 }
 ```
 
-### Extension points
+### 2. Constrained Collection Extensions
+
+Provide ergonomic extensions on standard library protocols by returning new sorted/filtered collections rather than mutating in place:
 
 ```swift
-// GOOD: Provide extension points
 public protocol Sortable {
     associatedtype SortKey: Comparable
     var sortKey: SortKey { get }
 }
 
-public extension Array where Element: Sortable {
-    func sorted() -> [Element] {
-        sort(by: { $0.sortKey < $1.sortKey })
+extension Sequence where Element: Sortable {
+    public func sortedByKey() -> [Element] {
+        sorted { $0.sortKey < $1.sortKey }
     }
 }
 ```
 
 ---
 
-## Rejection criteria
+## Common Tasks
 
-Follow the core rejection criteria from stratos-core:
-- **Stringly-Typed APIs**: Use enums instead of strings
-- **Boolean Traps**: Use semantic enums instead of booleans  
-- **Implicit Any**: Use concrete types
+### Designing a Public SDK API
 
-Additional rejections for Swift libraries:
-- **Global State**: Prefer dependency injection over shared mutable state
-- **Unjustified @unchecked Sendable**: Only use with explicit thread-safety justification
-- **Type Erasure**: Avoid `[String: Any]`, use concrete types or proper generics
-- **Blocking APIs in Async Context**: Prefer async/await over completion handlers where appropriate
+1. **Call site first**: Draft Layer 1 (zero-config), Layer 2 (fluent config), and Layer 3 (protocol DI) usage snippets.
+2. **Start at Troposphere**: Require only essential parameters in `public init` (e.g., `baseURL`), defaulting policies like `timeout` and `retryPolicy`.
+3. **Ensure `Sendable` discipline**: Mark public value types, protocols (`protocol Transport: Sendable`), and closures (`@Sendable`) for Swift 6 compatibility.
+4. **Plan for evolution**: Avoid exposing public protocols with no default implementations when a concrete struct suffices; use `@_spi(Experimental)` for unstable APIs.
 
-See [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria) for core anti-patterns.
+### Migrating a Library to Swift 6
 
----
-
-## Common tasks
-
-### Designing a public API
-
-1. **Call site first**: Write the ideal usage before implementation
-2. **Start simple**: Troposphere-level API that works out of the box
-3. **Add configuration**: Stratosphere via builder or config structs
-4. **Document stability**: Mark @stable/@unstable APIs
-5. **Provide extension points**: Allow customization
-
-### Adding concurrency to existing code
-
-1. **Identify blocking operations**: I/O, network, file system
-2. **Create async equivalents**: `func fetch() async throws -> T`
-3. **Use actors**: For shared mutable state
-4. **Add Sendable**: Conform types where possible
-5. **Test for concurrency**: Use -sanitize=thread
-
-### Migrating to Swift 6
-
-1. **Enable strict concurrency**: `-strict-concurrency=complete`
-2. **Fix Sendable errors**: Add conformance or @unchecked
-3. **Actor isolation**: Ensure proper @MainActor usage
-4. **Remove @escaping**: Where async allows non-escaping
+1. Enable complete concurrency checking (`swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]` or Swift 6 language mode).
+2. Audit actors for state assumptions across `await` suspension points.
+3. Replace `NSLock` + `@unchecked Sendable` classes with `Mutex` or `actor`.
+4. Add `: Sendable` to public dependency injection protocols so mocks and implementations can cross actor boundaries.
 
 ---
 
-## See also
+## Rejection Criteria
 
-- [stratos-core](../stratos-core/SKILL.md) — Core methodology
-- [references/LAYERS.md](references/LAYERS.md) — Detailed layer implementation
-- [stratos-swiftui](../stratos-swiftui/SKILL.md) — SwiftUI implementation
+In addition to the core rejections in [stratos-core/SKILL.md](../stratos-core/SKILL.md#rejection-criteria), reject:
 
-## Further reading
+- **Actor Reentrancy Bugs**: Checking actor state before an `await` and mutating afterwards without re-validating or deduplicating in-flight tasks.
+- **Unjustified `@unchecked Sendable`**: Using `@unchecked Sendable` to silence compiler errors without a proven lock invariant (or writing invalid `@unchecked Sendable` attribute syntax instead of `: @unchecked Sendable`).
+- **Non-`Sendable` Public Protocols**: Defining async service/transport protocols without `: Sendable`, which makes them unusable from actors and `@MainActor` views in Swift 6.
+- **Rigid Result Builders**: Designing `@resultBuilder` blocks that only accept a fixed tuple of arguments in a mandatory order.
+- **Untyped Dictionaries & `Any`**: Exposing `[String: Any]` in public APIs instead of `Codable` structs, enums, or generics.
+
+---
+
+## See Also
+
+- [stratos-core](../stratos-core/SKILL.md) — Core Progressive Disclosure methodology
+- [references/LAYERS.md](references/LAYERS.md) — Detailed Swift library layer patterns and migration checklist
+- [stratos-swiftui](../stratos-swiftui/SKILL.md) — SwiftUI component implementation
+
+## Further Reading
 
 - [On Progressive Disclosure in Swift](https://www.youtube.com/watch?v=opqKGgJavkw) (Swift Craft 2025) — Doug Gregor explains how Swift applies Progressive Disclosure to language design, including Typed Throws, Non-Copyable Types, and concurrency evolution.
