@@ -70,14 +70,14 @@ Provide a zero-config convenience initializer for `String` labels alongside a ge
 // CALL SITE:
 Badge("New")                        // Layer 1 (Troposphere): zero-config
 Badge("Error")                      // Layer 2 (Stratosphere): semantic modifier
-    .badgeProminence(.increased)
+    .badgeProminence(.prominent)
 Badge {                             // Layer 1 (Troposphere): custom content
     Label("Beta", systemImage: "flask")
 }
 
 // IMPLEMENTATION:
 enum BadgeProminence {
-    case standard, increased
+    case standard, prominent
 }
 
 struct Badge<Content: View>: View {
@@ -94,10 +94,10 @@ struct Badge<Content: View>: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
-                prominence == .increased ? Color.accentColor : Color.accentColor.opacity(0.15),
+                prominence == .prominent ? Color.accentColor : Color.accentColor.opacity(0.15),
                 in: Capsule()
             )
-            .foregroundStyle(prominence == .increased ? Color.white : Color.accentColor)
+            .foregroundStyle(prominence == .prominent ? Color.white : Color.accentColor)
     }
 }
 
@@ -141,7 +141,7 @@ final class UserViewModel {
     func saveProfile() async {
         isSaving = true
         defer { isSaving = false }
-        // ... async save logic
+        try? await Task.sleep(for: .milliseconds(300))
     }
 }
 
@@ -212,7 +212,7 @@ struct CardTheme: Equatable, Sendable {
     var backgroundColor: Color
     var cornerRadius: CGFloat
 
-    static let standard = CardTheme(backgroundColor: Color(.secondarySystemBackground), cornerRadius: 12)
+    static let standard = CardTheme(backgroundColor: Color.secondary.opacity(0.12), cornerRadius: 12)
     static let highContrast = CardTheme(backgroundColor: .black, cornerRadius: 8)
 }
 
@@ -298,7 +298,7 @@ Button("Play Media", systemImage: "play.fill", action: play)
 
 #Preview("High Contrast Theme") {
     Badge("Alert")
-        .badgeProminence(.increased)
+        .badgeProminence(.prominent)
         .cardTheme(.highContrast)
 }
 ```

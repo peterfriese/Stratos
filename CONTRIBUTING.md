@@ -55,10 +55,12 @@ stratos-new-skill/
 
 ## Validation
 
-Before committing, run the validation script:
+Before committing, run the validation suite:
 
 ```bash
-swift scripts/validate-skills.swift
+just validate                              # Or: swift scripts/validate-skills.swift
+just validate-quick                        # Or: swift scripts/validate-skills.swift --skip-snippets
+just verify-snippets                       # Or: swift scripts/verify-snippets.swift
 ```
 
 This validates:
@@ -69,6 +71,7 @@ This validates:
 - Line count budget (warns at >350 lines, errors at >500 lines)
 - Relative Markdown links in `SKILL.md` and `references/*.md`
 - References structure (flat, one level deep)
+- Swift 6 compilation (`swiftc -typecheck -swift-version 6`) of all Swift scripts and Markdown/YAML ```` ```swift ```` code snippets
 
 ---
 

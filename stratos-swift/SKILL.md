@@ -63,7 +63,7 @@ public enum TokenError: Error, Sendable, Equatable {
 public func validate(_ token: String) throws(TokenError) -> Claims {
     guard !token.isEmpty else { throw .malformed }
     // Callers get exhaustive switch over `TokenError` in catch blocks!
-    ...
+    return Claims(rawToken: token)
 }
 ```
 
@@ -168,12 +168,12 @@ Use `@resultBuilder` with a homogeneous component enum (or `buildExpression` ove
 ```swift
 // CALL SITE:
 let request = HTTPRequest(url: endpoint) {
-    .method(.post)
-    .header("Accept", "application/json")
+    Method(.post)
+    Header("Accept", "application/json")
     if includeAuth {
-        .bearerToken(token)
+        BearerToken(token)
     }
-    .timeout(.seconds(30))
+    Timeout(.seconds(30))
 }
 
 // IMPLEMENTATION:
@@ -183,6 +183,11 @@ public enum RequestComponent: Sendable {
     case bearerToken(String)
     case timeout(Duration)
 }
+
+public func Method(_ method: HTTPMethod) -> RequestComponent { .method(method) }
+public func Header(_ name: String, _ value: String) -> RequestComponent { .header(name, value) }
+public func BearerToken(_ token: String) -> RequestComponent { .bearerToken(token) }
+public func Timeout(_ duration: Duration) -> RequestComponent { .timeout(duration) }
 
 @resultBuilder
 public struct RequestBuilder {
@@ -200,6 +205,16 @@ public struct RequestBuilder {
     }
     public static func buildEither(second component: [RequestComponent]) -> [RequestComponent] {
         component
+    }
+}
+
+public struct HTTPRequest: Sendable {
+    public let url: URL
+    public let components: [RequestComponent]
+
+    public init(url: URL, @RequestBuilder content: () -> [RequestComponent]) {
+        self.url = url
+        self.components = content()
     }
 }
 ```

@@ -85,7 +85,7 @@ extension View {
 
 ```swift
 // GOOD: Describes semantic intent
-.badgeProminence(.increased)
+.badgeProminence(.prominent)
 .cardElevation(.raised)
 .statusTone(.warning)
 
