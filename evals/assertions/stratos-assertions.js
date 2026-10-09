@@ -16,6 +16,31 @@ function extractUncommentedSwiftCode(output) {
 }
 
 /**
+ * Extracts balanced parameter lists for all `init(...)` declarations in `swiftCode`,
+ * properly handling nested parentheses in closure types or default values.
+ */
+function extractInitParameterLists(swiftCode) {
+  const results = [];
+  const initKeywordRegex = /\binit\s*\(/g;
+  let match;
+  while ((match = initKeywordRegex.exec(swiftCode)) !== null) {
+    const startIdx = match.index + match[0].length;
+    let depth = 1;
+    let i = startIdx;
+    while (i < swiftCode.length && depth > 0) {
+      const ch = swiftCode[i];
+      if (ch === '(') depth++;
+      else if (ch === ')') depth--;
+      i++;
+    }
+    if (depth === 0) {
+      results.push(swiftCode.slice(startIdx, i - 1));
+    }
+  }
+  return results;
+}
+
+/**
  * Verifies "Call Site First" law: the response shows a call-site / usage code snippet
  * BEFORE the primary target type implementation.
  */
@@ -38,15 +63,16 @@ function assertCallSiteFirst(output) {
   const firstBlockUncommented = stripSwiftComments(firstBlock.raw);
   const textBeforeEndOfFirstBlock = text.slice(0, firstBlock.index) + '\n' + firstBlock.raw;
 
-  // 1. If the heading/prose right before the first block or comment inside it explicitly marks it as Call Site,
-  // and it isn't defining the whole implementation in a single block without call site first:
   const hasExplicitCallSiteHeader = /(?:###?\s*.*(?:call\s*site|ideal\s*usage|layer\s*1)|\/\/\s*(?:MARK:\s*-\s*)?(?:1\.\s*)?(?:ideal\s+)?(?:call\s*site|usage|layer\s*1|troposphere|step\s*1))/i.test(textBeforeEndOfFirstBlock);
 
-  const typeDeclRegex = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol)\s+(\w+)/gm;
+  // Include `enum` and `extension` alongside `struct`, `class`, `actor`, `protocol` so an enum/extension-only
+  // implementation block is not mistaken for a call site.
+  const typeDeclRegex = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol|enum|extension)\s+(\w+)/gm;
   const declaredTypesInFirstBlock = [...firstBlockUncommented.matchAll(typeDeclRegex)].map(m => m[1]);
 
-  // Pure call-site snippet (no struct/class/actor/protocol declarations at all)
-  if (declaredTypesInFirstBlock.length === 0) {
+  // Require positive evidence of a call/invocation or initialization in the first block when no types are declared
+  const hasCallExpression = /(?:\b(?:let|var|try|await)\b|\w+\s*\(|\.\w+\s*\()/.test(firstBlockUncommented);
+  if (declaredTypesInFirstBlock.length === 0 && hasCallExpression) {
     return {
       pass: true,
       score: 1,
@@ -55,7 +81,7 @@ function assertCallSiteFirst(output) {
   }
 
   // Parent/Container/App wrapper view demonstrating the call site of a child view
-  const onlyDefinesCallerContainer = declaredTypesInFirstBlock.every(name =>
+  const onlyDefinesCallerContainer = declaredTypesInFirstBlock.length > 0 && declaredTypesInFirstBlock.every(name =>
     /^(?:Parent|Container|SettingsContainer|Host|App|Root|Caller|Example|Demo|Mock)/i.test(name)
   );
   if (onlyDefinesCallerContainer && codeBlocksWithIndex.length >= 2) {
@@ -69,7 +95,7 @@ function assertCallSiteFirst(output) {
   // Single block or multi-block that starts with a `// CALL SITE` section before the first type declaration
   const callSiteCommentRegex = new RegExp('//\\s*(?:MARK:\\s*-\\s*)?(?:1\\.\\s*)?(?:ideal\\s+)?(?:call\\s*site|usage|layer\\s*1|troposphere|step\\s*1)', 'i');
   const callSiteCommentMatch = callSiteCommentRegex.exec(firstBlock.raw);
-  const firstTypeMatch = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol)\s+\w+/m.exec(firstBlock.raw);
+  const firstTypeMatch = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol|enum|extension)\s+\w+/m.exec(firstBlock.raw);
   if (callSiteCommentMatch && firstTypeMatch && callSiteCommentMatch.index < firstTypeMatch.index) {
     return {
       pass: true,
@@ -78,7 +104,7 @@ function assertCallSiteFirst(output) {
     };
   }
 
-  if (hasExplicitCallSiteHeader && codeBlocksWithIndex.length >= 2) {
+  if (hasExplicitCallSiteHeader && codeBlocksWithIndex.length >= 2 && hasCallExpression) {
     return {
       pass: true,
       score: 1,
@@ -98,10 +124,10 @@ function assertCallSiteFirst(output) {
  */
 function assertNoInitBloat(output) {
   const swiftCode = extractUncommentedSwiftCode(output);
+  const paramLists = extractInitParameterLists(swiftCode);
 
-  const initMatches = [...swiftCode.matchAll(/init\s*\(([^)]*)\)/g)];
-  for (const match of initMatches) {
-    const paramsRaw = match[1].trim();
+  for (const rawList of paramLists) {
+    const paramsRaw = rawList.trim();
     if (!paramsRaw) continue;
     let depth = 0;
     let paramCount = 1;

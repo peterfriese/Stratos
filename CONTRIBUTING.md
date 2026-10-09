@@ -27,7 +27,7 @@ stratos-new-skill/
      Use when [specific trigger scenario].
    metadata:
      author: peterfriese
-     version: "1.2"
+     version: "1.0"
    ---
    ```
 

@@ -10,11 +10,11 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 **What changed:**
 - Created `feat/evals` branch off `main` after committing the `v1.2` skill and validation upgrades in 5 atomic commits.
-- Built a [Promptfoo](https://www.promptfoo.dev/) evaluation harness in [`evals/`](evals/README.md):
-  - [`evals/promptfooconfig.yaml`](evals/promptfooconfig.yaml): Configures a 3-way comparison matrix across `1. Baseline (No Skill)`, `2. Domain Skill Only (Standalone)`, and `3. Full Stratos (stratos-core + Domain Skill)` using `vertex:gemini-3-flash-preview` by default (plus `npm run eval:pro` for `vertex:gemini-3.1-pro-preview`).
-  - [`evals/prompts/build-prompt.js`](evals/prompts/build-prompt.js): Dynamically injects `SKILL.md` and `references/LAYERS.md` from the repository based on `vars.skill` and `vars.include_references`.
-  - [`evals/assertions/stratos-assertions.js`](evals/assertions/stratos-assertions.js): Deterministic JavaScript assertions checking uncommented Swift code blocks for `assertCallSiteFirst`, `assertNoInitBloat`, `assertModernSwiftUICode`, `assertModernObservationCode`, and `assertNoNSLockInCode`.
-  - Test suites covering 9 scenarios (27 evaluations per run) across [`evals/tests/core.yaml`](evals/tests/core.yaml), [`evals/tests/swiftui.yaml`](evals/tests/swiftui.yaml), and [`evals/tests/swift.yaml`](evals/tests/swift.yaml).
+- Built a [Promptfoo](https://www.promptfoo.dev/) evaluation harness in [`evals/`](../evals/README.md):
+  - [`evals/promptfooconfig.yaml`](../evals/promptfooconfig.yaml): Configures a 3-way comparison matrix across `1. Baseline (No Skill)`, `2. Domain Skill Only (Standalone)`, and `3. Full Stratos (stratos-core + Domain Skill)` using `vertex:gemini-3-flash-preview` by default (plus `npm run eval:pro` for `vertex:gemini-3.1-pro-preview`).
+  - [`evals/prompts/build-prompt.js`](../evals/prompts/build-prompt.js): Dynamically injects `SKILL.md` and `references/LAYERS.md` from the repository based on `vars.skill` and `vars.include_references`.
+  - [`evals/assertions/stratos-assertions.js`](../evals/assertions/stratos-assertions.js): Deterministic JavaScript assertions checking uncommented Swift code blocks for `assertCallSiteFirst`, `assertNoInitBloat`, `assertModernSwiftUICode`, `assertModernObservationCode`, and `assertNoNSLockInCode`.
+  - Test suites covering 9 scenarios (27 evaluations per run) across [`evals/tests/core.yaml`](../evals/tests/core.yaml), [`evals/tests/swiftui.yaml`](../evals/tests/swiftui.yaml), and [`evals/tests/swift.yaml`](../evals/tests/swift.yaml).
 - Tightened **Call Site First** across all three `SKILL.md` files (requiring the very first Swift code block to show the call site before any type definitions) and added **Unlabelled Icon-Only Controls (Accessibility)** to `stratos-swiftui/SKILL.md` Rejection Criteria based on initial eval feedback.
 
 **Benchmark results (`vertex:gemini-3-flash-preview`):**

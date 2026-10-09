@@ -63,10 +63,10 @@ npm run eval:pro      # Evaluate against vertex:gemini-3.1-pro-preview
 
 ```bash
 # Evaluate with Gemini 2.5 Pro
-npx promptfoo@latest eval -c promptfooconfig.yaml -p vertex:gemini-2.5-pro
+npx promptfoo@0.124.1 eval -c promptfooconfig.yaml -p vertex:gemini-2.5-pro
 
 # Evaluate with Claude Sonnet
-npx promptfoo@latest eval -c promptfooconfig.yaml -p anthropic:messages:claude-sonnet-4-5
+npx promptfoo@0.124.1 eval -c promptfooconfig.yaml -p anthropic:messages:claude-sonnet-4-5
 ```
 
 ### 3. View interactive comparison matrix

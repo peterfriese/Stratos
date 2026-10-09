@@ -197,7 +197,8 @@ public struct TransactionHandle: ~Copyable, Sendable {
     private var isCommitted = false
 
     public consuming func commit() throws {
-        // Consumes `self` — caller cannot use or rollback the handle after committing!
+        // Perform commit work, then disarm rollback before `self` is consumed:
+        isCommitted = true
     }
 
     deinit {

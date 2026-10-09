@@ -138,7 +138,12 @@ try await FileUpload(from: localFileURL, to: .userAvatars)
     }
     .send()
 
-// Layer 4 (Thermosphere): Custom transport injection for power users / tests
+// Layer 3 (Mesosphere): Custom transport injection for scoped / test contexts
 let service = FileUploadService(transport: MockChunkedTransport())
 try await service.upload(localFileURL, to: .userAvatars)
+
+// Layer 4 (Thermosphere): Custom chunking/interceptor strategy for power users
+try await FileUpload(from: localFileURL, to: .userAvatars)
+    .uploadStrategy(AdaptiveMultistreamStrategy(maxConcurrentStreams: 4))
+    .send()
 ```
