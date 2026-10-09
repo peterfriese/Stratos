@@ -25,23 +25,33 @@ func validateSkills(at basePath: String) -> ValidationResult {
     let fileManager = FileManager.default
     let baseURL = URL(fileURLWithPath: basePath)
 
-    guard let contents = try? fileManager.contentsOfDirectory(
-        at: baseURL,
-        includingPropertiesForKeys: nil
-    ) else {
-        result.errors.append("Cannot read directory: \(basePath)")
-        return result
-    }
-
     var skillDirs: [URL] = []
-    for item in contents.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-        let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-        if isDir {
-            let skillPath = item.appendingPathComponent("SKILL.md")
-            if fileManager.fileExists(atPath: skillPath.path) {
-                skillDirs.append(item)
+    let directSkillMD = baseURL.appendingPathComponent("SKILL.md")
+    if fileManager.fileExists(atPath: directSkillMD.path) {
+        skillDirs.append(baseURL.standardizedFileURL)
+    } else {
+        guard let contents = try? fileManager.contentsOfDirectory(
+            at: baseURL,
+            includingPropertiesForKeys: nil
+        ) else {
+            result.errors.append("Cannot read directory: \(basePath)")
+            return result
+        }
+
+        for item in contents.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if isDir {
+                let skillPath = item.appendingPathComponent("SKILL.md")
+                if fileManager.fileExists(atPath: skillPath.path) {
+                    skillDirs.append(item)
+                }
             }
         }
+    }
+
+    if skillDirs.isEmpty {
+        result.errors.append("No skills found in: \(basePath)")
+        return result
     }
 
     result.passed.append("Found \(skillDirs.count) skill(s)")
@@ -395,12 +405,74 @@ func validateReferences(in path: URL, skillName: String, result: inout Validatio
     result.passed.append("[\(skillName)] References structure is valid")
 }
 
-func main() {
-    let args = CommandLine.arguments
+func runSnippetVerification(at basePath: String) -> Bool {
+    let scriptDirURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+    let siblingVerifyURL = scriptDirURL.appendingPathComponent("verify-snippets.swift")
+    let fallbackVerifyURL = URL(fileURLWithPath: basePath).appendingPathComponent("scripts/verify-snippets.swift")
+    let verifyScriptURL = FileManager.default.fileExists(atPath: siblingVerifyURL.path) ? siblingVerifyURL : fallbackVerifyURL
 
-    var path = "."
-    if args.count > 1 {
-        path = args[1]
+    guard FileManager.default.fileExists(atPath: verifyScriptURL.path) else {
+        print("✗ Cannot find \(verifyScriptURL.path)")
+        return false
+    }
+
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    process.arguments = [
+        "swift",
+        "-module-cache-path", "/tmp/stratos-clang-module-cache",
+        verifyScriptURL.path,
+        basePath
+    ]
+    process.standardOutput = FileHandle.standardOutput
+    process.standardError = FileHandle.standardError
+
+    do {
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    } catch {
+        print("✗ Failed to run verify-snippets.swift: \(error)")
+        return false
+    }
+}
+
+func printUsage() {
+    print("""
+    Usage: swift scripts/validate-skills.swift [options] [path]
+
+    Options:
+      --skip-snippets   Run fast structural/frontmatter/link validation only
+      --snippets-only   Run Swift 6 code snippet compilation only
+      -h, --help        Show this help message
+    """)
+}
+
+func main() {
+    let rawArgs = Array(CommandLine.arguments.dropFirst())
+    let knownFlags: Set<String> = ["--skip-snippets", "--snippets-only", "--help", "-h"]
+    let flags = rawArgs.filter { $0.hasPrefix("-") }
+    let unknownFlags = flags.filter { !knownFlags.contains($0) }
+
+    if !unknownFlags.isEmpty {
+        print("✗ Unknown option(s): \(unknownFlags.joined(separator: ", "))\n")
+        printUsage()
+        exit(1)
+    }
+
+    if flags.contains("--help") || flags.contains("-h") {
+        printUsage()
+        exit(0)
+    }
+
+    let skipSnippets = flags.contains("--skip-snippets")
+    let snippetsOnly = flags.contains("--snippets-only")
+    let positionalArgs = rawArgs.filter { !$0.hasPrefix("-") }
+    let path = positionalArgs.first ?? "."
+
+    if snippetsOnly {
+        let ok = runSnippetVerification(at: path)
+        exit(ok ? 0 : 1)
     }
 
     print("Validating skills in: \(path)")
@@ -430,11 +502,22 @@ func main() {
     }
 
     print("")
-    if result.isSuccess {
-        print("✓ All validations passed!")
+    if !result.isSuccess {
+        print("✗ Validation failed with \(result.errors.count) error(s)")
+        exit(1)
+    }
+
+    if skipSnippets {
+        print("✓ All structural validations passed! (skipped snippet compilation)")
+        exit(0)
+    }
+
+    print("")
+    let snippetsOK = runSnippetVerification(at: path)
+    if snippetsOK {
+        print("\n✓ All skill and code snippet validations passed!")
         exit(0)
     } else {
-        print("✗ Validation failed with \(result.errors.count) error(s)")
         exit(1)
     }
 }

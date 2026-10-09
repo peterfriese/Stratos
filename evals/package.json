@@ -10,7 +10,7 @@
     "eval:swiftui": "npx promptfoo@0.124.1 eval -c promptfooconfig.yaml --filter-metadata skill=stratos-swiftui",
     "eval:swift": "npx promptfoo@0.124.1 eval -c promptfooconfig.yaml --filter-metadata skill=stratos-swift",
     "eval:view": "npx promptfoo@0.124.1 view",
-    "eval:validate": "swift ../scripts/validate-skills.swift .."
+    "eval:validate": "swift -module-cache-path /tmp/stratos-clang-module-cache ../scripts/validate-skills.swift .."
   },
   "devDependencies": {
     "promptfoo": "0.124.1"
