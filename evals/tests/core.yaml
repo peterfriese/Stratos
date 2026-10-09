@@ -1,0 +1,113 @@
+# Tests for stratos-core: Progressive Disclosure, 4-Layer Architecture, and API Review Rubric
+
+- description: "[stratos-core] Refactor monolithic init-bloated API into Progressive Disclosure layers"
+  metadata:
+    skill: stratos-core
+  vars:
+    skill: stratos-core
+    include_references: true
+    user_prompt: |
+      Review and refactor this Swift API so it follows Progressive Disclosure:
+
+      ```swift
+      public struct DataExporter {
+          public init(
+              source: DataSource,
+              format: String,
+              includeHeaders: Bool,
+              compressOutput: Bool,
+              encryptionKey: String?,
+              delimiter: String,
+              dateFormat: String,
+              logger: Logger?
+          ) { ... }
+      }
+      ```
+  assert:
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertCallSiteFirst
+    - type: icontains
+      value: "enum"
+    - type: regex
+      value: "(Troposphere|Layer 1|Stratosphere|Layer 2)"
+    - type: llm-rubric
+      value: |
+        The response must:
+        1. Show the ideal call site first before the implementation.
+        2. Reduce the primary initializer to only essential identity/data parameters (<= 3-4 parameters, e.g., `source` and optionally `format`).
+        3. Replace the stringly-typed `format: String` and `delimiter: String` and boolean traps (`includeHeaders: Bool`, `compressOutput: Bool`) with semantic enums or typed value configurations.
+        4. Move optional tweaks (`compression`, `encryption`, `headers`) into chainable Layer 2 (Stratosphere) methods or configuration types.
+
+- description: "[stratos-core] Produce structured API Review Rubric table on anti-pattern code"
+  metadata:
+    skill: stratos-core
+  vars:
+    skill: stratos-core
+    include_references: false
+    user_prompt: |
+      Audit the following API for Stratos compliance and report all violations:
+
+      ```swift
+      struct BannerView: View {
+          init(
+              title: String,
+              isWarning: Bool,
+              isDismissible: Bool,
+              alignment: String,
+              shadowRadius: CGFloat,
+              backgroundColor: Color
+          ) { ... }
+      }
+
+      var config = NetworkConfig()
+      config.setMode("aggressive")
+      config.enableLogging(true)
+      ```
+  assert:
+    - type: icontains
+      value: "Boolean"
+    - type: icontains
+      value: "String"
+    - type: regex
+      value: "\\|.*\\|.*\\|"
+    - type: llm-rubric
+      value: |
+        The response must:
+        1. Present findings in a Markdown table (following the Stratos API Review Rubric).
+        2. Flag Init-Bloat on `BannerView.init` (6 parameters mixing data and styling).
+        3. Flag Boolean Traps (`isWarning: Bool`, `isDismissible: Bool`, `enableLogging(true)`).
+        4. Flag Stringly-Typed parameters (`alignment: String`, `setMode("aggressive")`).
+        5. Flag Side-Effect Configuration / Default Mutation on `var config = NetworkConfig()`.
+        6. Provide a refactored Call-Site-First replacement using semantic enums and fluent modifiers.
+
+- description: "[stratos-core] Guide layer escalation decision (Layer 2 vs Layer 3 vs Layer 4)"
+  metadata:
+    skill: stratos-core
+  vars:
+    skill: stratos-core
+    include_references: true
+    user_prompt: |
+      We are building a design system component `AlertCard`.
+      - 90% of callers just pass a title and message.
+      - Some callers want to change the urgency level (`.info`, `.warning`, `.critical`) on a single card.
+      - Screens in the Settings flow all share a compact density without passing a parameter to every card.
+      - One partner team needs to completely rearrange where the icon, title, and action buttons are placed inside the card.
+
+      Map each of these 4 requirements to the exact Stratos altitude layer and show the call site for each layer.
+  assert:
+    - type: icontains
+      value: "Troposphere"
+    - type: icontains
+      value: "Stratosphere"
+    - type: icontains
+      value: "Mesosphere"
+    - type: icontains
+      value: "Thermosphere"
+    - type: llm-rubric
+      value: |
+        The response must accurately map:
+        - Title & message only -> Layer 1 (Troposphere: zero-config primary initializer)
+        - Per-card urgency level -> Layer 2 (Stratosphere: semantic view modifier)
+        - Screen-wide compact density -> Layer 3 (Mesosphere: `@Environment` / `@Entry` modifier applied to the container)
+        - Complete layout rearrangement by partner team -> Layer 4 (Thermosphere: custom `AlertCardStyle` protocol and configuration)
+        And show clean Swift call sites for all 4 layers.

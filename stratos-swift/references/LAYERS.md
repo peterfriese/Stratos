@@ -1,292 +1,291 @@
 # Swift Library Layer Reference
 
-Detailed implementation guidance for each of the four Stratos layers in Swift library contexts.
+Detailed implementation guidance for each of the four Stratos layers in Swift library and SDK contexts.
 
 ---
 
-## Layer 1: Troposphere — sensible defaults
+## Layer 1: Troposphere — Sensible Defaults
 
-### Implementation guidelines
+### Implementation Guidelines
 
-Troposphere-level APIs should work immediately with zero configuration:
+Troposphere-level APIs work out of the box with zero configuration ceremony:
 
 ```swift
-// Good: Sensible defaults
-struct HTTPClient {
-    let baseURL: URL
-    let timeout: TimeInterval = 30  // Default
+public struct HTTPClient: Sendable {
+    public let baseURL: URL
+    public var timeout: Duration = .seconds(30)
+    public var maxRetries: Int = 3
 
-    init(baseURL: URL) {
+    public init(baseURL: URL) {
         self.baseURL = baseURL
     }
 }
 
-// Usage: Just needs the base URL
-let client = HTTPClient(baseURL: URL(string: "https://api.example.com")!)
+// Usage: Only requires the essential identity (baseURL)
+let client = HTTPClient(baseURL: apiURL)
 ```
 
-### What belongs here
+### What Belongs Here
 
-- Required data (baseURL, endpoints)
-- Sensible defaults (timeout: 30, retries: 3)
-- Single initializer with max 3-4 parameters
+- Required identity/data (`baseURL`, target resource)
+- Sensible defaults (`timeout = .seconds(30)`, `maxRetries = 3`)
+- Single primary initializer with at most 3–4 parameters
 
-### What doesn't belong
+### What Doesn't Belong
 
-- Optional configuration
-- Platform-specific behavior
-- Debug/logging options
+- Rare edge-case flags
+- Custom transport/session overrides (→ Layer 3)
+- Interceptor pipelines (→ Layer 4)
 
 ---
 
-## Layer 2: Stratosphere — configuration
+## Layer 2: Stratosphere — Configuration & Fluent Builders
 
-### Implementation patterns
+### Implementation Patterns
+
+Provide value-semantic fluent methods (or a cohesive `Configuration` struct with defaults) for per-instance tuning:
 
 ```swift
-// Pattern 1: Configuration struct
-struct HTTPClientConfig {
-    var timeout: TimeInterval = 30
-    var retries: Int = 3
-    var headers: [String: String] = [:]
-}
+// Pattern A: Fluent copy-on-modify builders
+extension HTTPClient {
+    public func timeout(_ duration: Duration) -> Self {
+        var copy = self
+        copy.timeout = duration
+        return copy
+    }
 
-struct HTTPClient {
-    let config: HTTPClientConfig
-
-    init(baseURL: URL, config: HTTPClientConfig = .init()) {
-        self.baseURL = baseURL
-        self.config = config
+    public func retries(_ count: Int) -> Self {
+        var copy = self
+        copy.maxRetries = count
+        return copy
     }
 }
 
 // Usage:
-let client = HTTPClient(
-    baseURL: url,
-    config: HTTPClientConfig(timeout: 60, retries: 5)
-)
-
-// Pattern 2: Builder
-let client = HTTPClient(baseURL: url)
-    .timeout(60)
+let client = HTTPClient(baseURL: apiURL)
+    .timeout(.seconds(60))
     .retries(5)
-    .header("Authorization", "Bearer token")
+
+// Pattern B: Cohesive configuration struct with defaults
+public struct HTTPClientConfiguration: Sendable, Equatable {
+    public var timeout: Duration = .seconds(30)
+    public var maxRetries: Int = 3
+    public var defaultHeaders: [String: String] = [:]
+
+    public init(
+        timeout: Duration = .seconds(30),
+        maxRetries: Int = 3,
+        defaultHeaders: [String: String] = [:]
+    ) {
+        self.timeout = timeout
+        self.maxRetries = maxRetries
+        self.defaultHeaders = defaultHeaders
+    }
+}
 ```
 
 ### Guidelines
 
-- Config structs should be `Equatable` for testing
-- Builders should return `Self` for chaining
-- Consider default values at every level
+- Config structs must conform to `Sendable` and `Equatable`.
+- Fluent builder methods return `Self` so configuration stays immutable (`let client = ...`) at the call site.
 
 ---
 
-## Layer 3: Mesosphere — dependency injection
+## Layer 3: Mesosphere — Dependency Injection & Context
 
-### When to use DI
+### When to Use DI & `@TaskLocal`
 
-Use for:
-- **External dependencies**: Network clients, storage
-- **Platform abstractions**: File system, dates
-- **Test mocks**: Replace real implementations in tests
+Use Layer 3 for:
+- **External transports**: Network sessions, persistence engines, keychain stores
+- **Deterministic testing**: Injecting clocks (`any Clock<Duration>`), UUID generators, or mock transports
+- **Implicit request context**: Propagating trace IDs or logger metadata via `@TaskLocal`
 
-Don't use for:
-- **Singleton-like concerns**: Use actors
-- **Configuration**: Use config structs (Layer 2)
-- **Ephemeral state**: Use local variables
+### Implementation Pattern
 
-### Implementation pattern
+Always mark dependency protocols as `: Sendable` so services can be safely shared across actors and `@MainActor` views:
 
 ```swift
-// Protocol for dependency
-protocol NetworkClient {
-    func fetch<T: Decodable>(_ type: T.Type, from: URL) async throws -> T
+public protocol HTTPTransport: Sendable {
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse)
 }
 
-// Protocol for configuration
-protocol HTTPClientProtocol {
-    func get<T>(_ type: T.Type, path: String) async throws -> T
-}
+public struct URLSessionTransport: HTTPTransport {
+    private let session: URLSession
 
-// Default implementation
-struct DefaultHTTPClient: HTTPClientProtocol {
-    let baseURL: URL
-    let session: URLSession
+    public init(session: URLSession = .shared) {
+        self.session = session
+    }
 
-    func get<T>(_ type: T.Type, path: String) async throws -> T {
-        // Implementation
+    public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        return (data, httpResponse)
     }
 }
 
-// Usage in consumer
-struct UserService {
-    let client: HTTPClientProtocol  // Inject via init
+public struct UserService: Sendable {
+    private let transport: any HTTPTransport
 
-    func fetchUsers() async throws -> [User] {
-        try await client.get([User].self, "/users")
+    // Default argument keeps Layer 1 zero-config while unlocking Layer 3 testability!
+    public init(transport: any HTTPTransport = URLSessionTransport()) {
+        self.transport = transport
     }
 }
 
-// Test injection
-final class MockHTTPClient: HTTPClientProtocol {
-    var result: Result<[User], Error> = .success([])
+// Thread-safe test double using an actor or immutable stub:
+public struct StubHTTPTransport: HTTPTransport {
+    public var responseData: Data
+    public var statusCode: Int
 
-    func get<T>(_ type: T.Type, path: String) async throws -> T {
-        try result.get() as! T
+    public init(responseData: Data, statusCode: Int = 200) {
+        self.responseData = responseData
+        self.statusCode = statusCode
     }
-}
-```
 
----
-
-## Layer 4: Thermosphere — deep customization
-
-### When to use
-
-Thermosphere is for power users who need full control. Most library users should stop at Layer 2-3.
-
-Use for:
-- Custom serialization strategies
-- Plugin architectures
-- Advanced middleware/chaining
-
-### Example: Middleware chain
-
-```swift
-protocol HTTPMiddleware {
-    func intercept(_ request: inout URLRequest) async throws
-}
-
-struct AuthMiddleware: HTTPMiddleware {
-    let token: String
-
-    func intercept(_ request: inout URLRequest) async throws {
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    }
-}
-
-struct LoggingMiddleware: HTTPMiddleware {
-    func intercept(_ request: inout URLRequest) async throws {
-        print("Request: \(request.url!)")
-    }
-}
-
-// Usage:
-var config = HTTPClientConfig()
-config.middlewares = [AuthMiddleware(token: "..."), LoggingMiddleware()]
-let client = HTTPClient(baseURL: url, config: config)
-```
-
-### Example: Custom serialization
-
-```swift
-protocol JSONDecoderProtocol {
-    func decode<T: Decodable>(_ type: T.Type, from: Data) throws -> T
-}
-
-struct CustomDecoder: JSONDecoderProtocol {
-    let keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy
-    let dateDecodingStrategy: JSONDecoder.DateDecodingStrategy
-
-    func decode<T: Decodable>(_ type: T.Type, from: Data) throws -> T {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = keyDecodingStrategy
-        decoder.dateDecodingStrategy = dateDecodingStrategy
-        return try decoder.decode(type, from: from)
+    public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: statusCode,
+            httpVersion: nil,
+            headerFields: nil
+        )!
+        return (responseData, response)
     }
 }
 ```
 
 ---
 
-## Layer escalation decision tree
+## Layer 4: Thermosphere — Deep Customization
 
-```
-Does the library have a common use case?
-├─ NO → Start at Layer 1
-└─ YES → Does the common case need customization?
-          ├─ NO → Layer 1 sufficient
-          └─ YES → Is the customization static (set once)?
-                    ├─ NO → Use Layer 2 (config/builder)
-                    └─ YES → Does the customization vary by context?
-                              ├─ NO → Layer 2
-                              └─ YES → Use Layer 3 (DI)
+### When to Use
+
+Thermosphere is for power users who need custom cross-cutting pipelines or serialization engines. Most library consumers should stop at Layers 1–3.
+
+### Example: Async Middleware Chain
+
+```swift
+public protocol HTTPMiddleware: Sendable {
+    func intercept(
+        _ request: URLRequest,
+        next: @Sendable (URLRequest) async throws -> (Data, HTTPURLResponse)
+    ) async throws -> (Data, HTTPURLResponse)
+}
+
+public struct BearerAuthMiddleware: HTTPMiddleware {
+    private let tokenProvider: @Sendable () async throws -> String
+
+    public init(tokenProvider: @escaping @Sendable () async throws -> String) {
+        self.tokenProvider = tokenProvider
+    }
+
+    public func intercept(
+        _ request: URLRequest,
+        next: @Sendable (URLRequest) async throws -> (Data, HTTPURLResponse)
+    ) async throws -> (Data, HTTPURLResponse) {
+        var signedRequest = request
+        let token = try await tokenProvider()
+        signedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await next(signedRequest)
+    }
+}
 ```
 
-**Only escalate to Layer 4 when:**
-- Layer 2-3 patterns have been proven insufficient
-- The use case genuinely requires a plugin/extension architecture
-- You're building a framework meant for third-party extension
+### Example: Non-Copyable Resource Handles (`~Copyable`)
+
+For low-level resources that require strict single-ownership (file descriptors, database transactions, cryptographic contexts), use `~Copyable` with `consuming` methods to prevent double-close bugs at compile time:
+
+```swift
+public struct TransactionHandle: ~Copyable, Sendable {
+    private var isCommitted = false
+
+    public consuming func commit() throws {
+        // Perform commit work, then disarm rollback before `self` is consumed:
+        isCommitted = true
+    }
+
+    deinit {
+        if !isCommitted {
+            // Automatically roll back if dropped without calling commit()
+        }
+    }
+}
+```
 
 ---
 
-## Anti-patterns
+## Layer Escalation Decision Tree
 
-### Configuration explosion
+```
+Does the library have a clear 90% use case?
+├─ NO  → Refine Layer 1 until the primary operation takes 1–2 lines
+└─ YES → Do callers need to tune individual calls or instances?
+          ├─ NO  → Stop at Layer 1 (Troposphere)
+          └─ YES → Is it a value/policy tweak (timeout, retry, format)?
+                    ├─ YES → Expose fluent modifiers / config in Layer 2 (Stratosphere)
+                    └─ NO  → Does it swap an external boundary (transport, clock, storage)?
+                              ├─ YES → Inject a `Sendable` protocol with a default in Layer 3 (Mesosphere)
+                              └─ NO  → Expose a Middleware / Strategy protocol in Layer 4 (Thermosphere)
+```
+
+---
+
+## Anti-Patterns
+
+### Configuration Explosion in `init`
 
 ```swift
-// BAD: Too many parameters
-init(
+// BAD: Forces every caller to confront 8 parameters upfront
+public init(
     baseURL: URL,
-    timeout: TimeInterval,
+    timeout: Duration,
     retries: Int,
     cacheEnabled: Bool,
     cacheSize: Int,
-    logger: Logger,
-    middleware: [Middleware],
-    encoder: Encoder,
-    decoder: Decoder
+    logger: Logger?,
+    middlewares: [any HTTPMiddleware],
+    decoder: JSONDecoder
 )
 
-// GOOD: Layered configuration
-init(baseURL: URL)  // Required
-.timeout(30)        // Layer 2
-.cache(enabled: true, size: 100)  // Grouped
+// GOOD: Progressive Disclosure
+let client = HTTPClient(baseURL: apiURL)              // Layer 1
+    .timeout(.seconds(30))                            // Layer 2
+    .cache(.memory(limitBytes: 50_000_000))           // Layer 2 (semantic enum, no boolean trap)
 ```
 
-### Leaky abstractions
+### Leaky Abstractions
 
 ```swift
-// BAD: Exposing internal types
+// BAD: Exposing internal concurrency primitives on public types
 public struct Client {
-    internal let session: URLSession
-    public let queue: DispatchQueue  // Leaky abstraction
+    public let queue: DispatchQueue
 }
 
-// GOOD: Hide implementation details
-public protocol ClientProtocol {
-    func fetch<T>(_: T.Type) async throws -> T
-}
-```
-
-### Global state
-
-```swift
-// BAD: Global mutable state
-static var globalClient: Client?
-
-// GOOD: Pass dependencies
-struct Service {
-    let client: ClientProtocol
+// GOOD: Encapsulate synchronization inside an actor or Sendable type
+public actor Client {
+    public func performWork() async throws -> ResultData { ... }
 }
 ```
 
 ---
 
-## Swift 6 migration checklist
+## Swift 6 Migration Checklist
 
-- [ ] Enable strict concurrency checking
-- [ ] Add `Sendable` to public structs/enums
-- [ ] Use `@MainActor` for UI-bound types
-- [ ] Convert completion handlers to async
-- [ ] Use actors for shared mutable state
-- [ ] Remove `@escaping` where async allows
-- [ ] Test with `-sanitize=thread`
+- [ ] Enable Swift 6 language mode or `-strict-concurrency=complete`
+- [ ] Add `Sendable` to public structs, enums, and protocols
+- [ ] Mark view-bound observable models with `@MainActor`
+- [ ] Audit `actor` methods for state changes across `await` suspension points
+- [ ] Replace `NSLock` + `@unchecked Sendable` with `Mutex` (from `Synchronization`) or `actor`
+- [ ] Use Typed Throws (`throws(DomainError)`) for closed, exhaustive error domains
+- [ ] Test concurrent workloads with Thread Sanitizer (`-sanitize=thread`)
 
 ---
 
-## Further reading
+## Further Reading
 
-- [Swift.org Concurrency](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/)
-- [Swift Evolution SE-0303](https://github.com/apple/swift-evolution/blob/main/proposals/0303-actor-isolation.md) — Actor isolation
-- [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/)
+- [Swift Concurrency Documentation](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/)
+- [Swift API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/)
+- [SE-0413: Typed Throws](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0413-typed-throws.md)
+- [SE-0433: Synchronous Mutual Exclusion Lock (`Mutex`)](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0433-mutex.md)

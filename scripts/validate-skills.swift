@@ -2,14 +2,6 @@
 
 import Foundation
 
-enum ValidationError: Error {
-    case invalidName(String)
-    case invalidDescription(String)
-    case missingFile(String)
-    case invalidStructure(String)
-    case deepReference(String)
-}
-
 struct ValidationResult {
     var errors: [String] = []
     var warnings: [String] = []
@@ -22,6 +14,8 @@ struct SkillManifest {
     let path: String
     let name: String
     let description: String
+    let author: String?
+    let version: String?
     let lineCount: Int
 }
 
@@ -40,7 +34,7 @@ func validateSkills(at basePath: String) -> ValidationResult {
     }
 
     var skillDirs: [URL] = []
-    for item in contents {
+    for item in contents.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
         let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
         if isDir {
             let skillPath = item.appendingPathComponent("SKILL.md")
@@ -74,10 +68,14 @@ func validateSkill(at path: URL, name: String) -> ValidationResult {
     }
 
     let lines = content.components(separatedBy: "\n")
-    result.passed.append("[\(name)] SKILL.md has \(lines.count) lines")
+    // Trailing newline produces an empty last element; adjust count to match `wc -l`
+    let lineCount = content.hasSuffix("\n") ? lines.count - 1 : lines.count
+    result.passed.append("[\(name)] SKILL.md has \(lineCount) lines")
 
-    if lines.count > 500 {
-        result.warnings.append("[\(name)] SKILL.md has \(lines.count) lines (recommend <500)")
+    if lineCount > 500 {
+        result.errors.append("[\(name)] SKILL.md has \(lineCount) lines (must be <= 500)")
+    } else if lineCount > 350 {
+        result.warnings.append("[\(name)] SKILL.md has \(lineCount) lines (recommend <= 350; move details to references/LAYERS.md)")
     }
 
     guard let frontmatterStart = content.firstIndex(of: Character("-")),
@@ -87,27 +85,39 @@ func validateSkill(at path: URL, name: String) -> ValidationResult {
         return result
     }
 
-guard let closingRange = content.range(of: "---", range: content.index(after: frontmatterEnd)..<content.endIndex) else {
+    guard let closingRange = content.range(of: "---", range: content.index(after: frontmatterEnd)..<content.endIndex) else {
         result.errors.append("[\(name)] Invalid YAML frontmatter format")
         return result
     }
 
     let frontmatter = String(content[content.index(after: frontmatterEnd)..<closingRange.lowerBound])
-    let manifest = parseFrontmatter(frontmatter, skillName: name, result: &result)
+    let body = String(content[closingRange.upperBound...])
 
-    if let manifest = manifest {
+    if let manifest = parseFrontmatter(frontmatter, skillPath: skillPath, skillName: name, lineCount: lineCount, result: &result) {
         validateName(manifest.name, skillName: name, result: &result)
         validateDescription(manifest.description, skillName: name, result: &result)
+        validateMetadata(author: manifest.author, version: manifest.version, skillName: name, result: &result)
     }
 
+    validateSections(in: body, skillName: name, result: &result)
+    validateRelativeLinks(in: body, baseDir: path, fileLabel: "SKILL.md", skillName: name, result: &result)
     validateReferences(in: path, skillName: name, result: &result)
 
     return result
 }
 
-func parseFrontmatter(_ yaml: String, skillName: String, result: inout ValidationResult) -> SkillManifest? {
+func parseFrontmatter(
+    _ yaml: String,
+    skillPath: URL,
+    skillName: String,
+    lineCount: Int,
+    result: inout ValidationResult
+) -> SkillManifest? {
     var name: String?
     var description: String?
+    var author: String?
+    var version: String?
+    var inMetadataBlock = false
 
     let yamlLines = yaml.components(separatedBy: "\n")
     var i = 0
@@ -116,76 +126,80 @@ func parseFrontmatter(_ yaml: String, skillName: String, result: inout Validatio
         let line = yamlLines[i]
         let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-        // Skip empty lines and comments
         if trimmed.isEmpty || trimmed.hasPrefix("#") {
             i += 1
             continue
         }
 
-        // Match key: value pattern
-        let keyValuePattern = #"^(\w+):\s*(.*)$"#
+        let isIndented = line.hasPrefix(" ") || line.hasPrefix("\t")
+        if !isIndented {
+            inMetadataBlock = false
+        }
+
+        let keyValuePattern = #"^([\w-]+):\s*(.*)$"#
         if let regex = try? NSRegularExpression(pattern: keyValuePattern),
-           let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) {
+           let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+           let keyRange = Range(match.range(at: 1), in: trimmed) {
 
-            if let keyRange = Range(match.range(at: 1), in: trimmed) {
-                let key = String(trimmed[keyRange]).lowercased()
+            let key = String(trimmed[keyRange]).lowercased()
+            var value = ""
+            if let valueRange = Range(match.range(at: 2), in: trimmed) {
+                value = String(trimmed[valueRange])
+            }
 
-                // Get the value part after the colon
-                var value = ""
-                if let valueRange = Range(match.range(at: 2), in: trimmed) {
-                    value = String(trimmed[valueRange])
+            if !isIndented && key == "metadata" {
+                inMetadataBlock = true
+                i += 1
+                continue
+            }
+
+            let isMultiline = value.hasPrefix("|") || value.hasPrefix(">")
+
+            if isMultiline {
+                var multilineContent: [String] = []
+                let indicator = value.hasPrefix("|") ? "|" : ">"
+                let firstLine = value.replacingOccurrences(of: indicator, with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                if !firstLine.isEmpty {
+                    multilineContent.append(firstLine)
                 }
 
-                // Check if this is a multiline value (starts with | or >)
-                let isMultiline = value.hasPrefix("|") || value.hasPrefix(">")
-
-                if isMultiline {
-                    // Collect all indented lines that belong to this value
-                    var multilineContent: [String] = []
-
-                    // The first line after | or > contains the first line of content
-                    // Strip the | or > and any leading whitespace indicator
-                    let indicator = value.hasPrefix("|") ? "|" : ">"
-                    let firstLine = value.replacingOccurrences(of: indicator, with: "")
-                        .trimmingCharacters(in: .whitespaces)
-                    if !firstLine.isEmpty {
-                        multilineContent.append(firstLine)
+                i += 1
+                while i < yamlLines.count {
+                    let nextLine = yamlLines[i]
+                    if nextLine.hasPrefix(" ") || nextLine.hasPrefix("\t") {
+                        multilineContent.append(nextLine.trimmingCharacters(in: .whitespacesAndNewlines))
+                        i += 1
+                    } else if nextLine.trimmingCharacters(in: .whitespaces).isEmpty {
+                        i += 1
+                    } else {
+                        break
                     }
-
-                    // Collect subsequent indented lines
-                    i += 1
-                    while i < yamlLines.count {
-                        let nextLine = yamlLines[i]
-                        // Check if line is indented (starts with whitespace)
-                        if nextLine.hasPrefix(" ") || nextLine.hasPrefix("\t") {
-                            multilineContent.append(nextLine.trimmingCharacters(in: .whitespacesAndNewlines))
-                            i += 1
-                        } else if nextLine.trimmingCharacters(in: .whitespaces).isEmpty {
-                            // Allow empty lines in multiline
-                            i += 1
-                        } else {
-                            // Non-indented line - end of multiline value
-                            break
-                        }
-                    }
-
-                    value = multilineContent.joined(separator: " ")
-                } else {
-                    // Single-line value
-                    value = value.trimmingCharacters(in: .whitespaces)
-                    i += 1
                 }
 
-                // Trim trailing whitespace and newlines from value
-                value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                value = multilineContent.joined(separator: " ")
+            } else {
+                value = value.trimmingCharacters(in: .whitespaces)
+                if (value.hasPrefix("\"") && value.hasSuffix("\"")) || (value.hasPrefix("'") && value.hasSuffix("'")) {
+                    value = String(value.dropFirst().dropLast())
+                }
+                i += 1
+            }
 
+            value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if inMetadataBlock && isIndented {
+                if key == "author" {
+                    author = value
+                } else if key == "version" {
+                    version = value
+                }
+            } else if !isIndented {
                 if key == "name" {
                     name = value
                 } else if key == "description" {
                     description = value
                 }
-            } else {
-                i += 1
             }
         } else {
             i += 1
@@ -203,11 +217,14 @@ func parseFrontmatter(_ yaml: String, skillName: String, result: inout Validatio
         return nil
     }
 
-    let skillPath = "stratos-universe/\(skillName)/SKILL.md"
-    let lineCount = (try? String(contentsOf: URL(fileURLWithPath: skillPath), encoding: .utf8))?
-        .components(separatedBy: "\n").count ?? 0
-
-    return SkillManifest(path: skillPath, name: name, description: description, lineCount: lineCount)
+    return SkillManifest(
+        path: skillPath.path,
+        name: name,
+        description: description,
+        author: author,
+        version: version,
+        lineCount: lineCount
+    )
 }
 
 func validateName(_ name: String, skillName: String, result: inout ValidationResult) {
@@ -229,7 +246,11 @@ func validateName(_ name: String, skillName: String, result: inout ValidationRes
         result.errors.append("[\(skillName)] name cannot contain consecutive hyphens")
     }
 
-    result.passed.append("[\(skillName)] name '\(name)' is valid")
+    if name != skillName {
+        result.errors.append("[\(skillName)] frontmatter name '\(name)' must match parent directory name '\(skillName)'")
+    } else {
+        result.passed.append("[\(skillName)] name '\(name)' is valid and matches directory")
+    }
 }
 
 func validateDescription(_ description: String, skillName: String, result: inout ValidationResult) {
@@ -244,21 +265,130 @@ func validateDescription(_ description: String, skillName: String, result: inout
     result.passed.append("[\(skillName)] description is valid (\(description.count) chars)")
 }
 
+func validateMetadata(author: String?, version: String?, skillName: String, result: inout ValidationResult) {
+    guard let author = author, !author.isEmpty else {
+        result.errors.append("[\(skillName)] Missing required 'metadata.author' field")
+        return
+    }
+    guard let version = version, !version.isEmpty else {
+        result.errors.append("[\(skillName)] Missing required 'metadata.version' field")
+        return
+    }
+    result.passed.append("[\(skillName)] metadata is valid (author: \(author), version: \(version))")
+}
+
+func validateSections(in body: String, skillName: String, result: inout ValidationResult) {
+    let requiredSections = [
+        "role",
+        "activation triggers",
+        "core principles",
+        "common tasks",
+        "rejection criteria",
+        "see also"
+    ]
+
+    let lines = body.components(separatedBy: "\n")
+    var h2Headings: [String] = []
+    var inCodeBlock = false
+
+    for line in lines {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("```") {
+            inCodeBlock.toggle()
+            continue
+        }
+        if !inCodeBlock && trimmed.hasPrefix("## ") {
+            let heading = String(trimmed.dropFirst(3))
+                .trimmingCharacters(in: .whitespaces)
+                .lowercased()
+            h2Headings.append(heading)
+        }
+    }
+
+    var lastFoundIndex = -1
+    var orderValid = true
+    var missingSections: [String] = []
+
+    for required in requiredSections {
+        if let idx = h2Headings.firstIndex(of: required) {
+            if idx < lastFoundIndex {
+                orderValid = false
+            }
+            lastFoundIndex = idx
+        } else {
+            missingSections.append(required)
+        }
+    }
+
+    if !missingSections.isEmpty {
+        result.errors.append("[\(skillName)] Missing required section(s): \(missingSections.joined(separator: ", "))")
+    } else if !orderValid {
+        result.errors.append("[\(skillName)] Required sections are out of order (expected: Role → Activation Triggers → Core Principles → ... → Common Tasks → Rejection Criteria → See Also)")
+    } else {
+        result.passed.append("[\(skillName)] Required sections present and in order")
+    }
+}
+
+func validateRelativeLinks(in markdown: String, baseDir: URL, fileLabel: String, skillName: String, result: inout ValidationResult) {
+    let fileManager = FileManager.default
+    let linkPattern = #"\[([^\]]+)\]\(([^)]+)\)"#
+    guard let regex = try? NSRegularExpression(pattern: linkPattern) else { return }
+
+    let matches = regex.matches(in: markdown, range: NSRange(markdown.startIndex..., in: markdown))
+    var brokenLinks: [String] = []
+
+    for match in matches {
+        guard let targetRange = Range(match.range(at: 2), in: markdown) else { continue }
+        let rawTarget = String(markdown[targetRange]).trimmingCharacters(in: .whitespaces)
+
+        if rawTarget.hasPrefix("http://") || rawTarget.hasPrefix("https://") || rawTarget.hasPrefix("mailto:") || rawTarget.hasPrefix("#") {
+            continue
+        }
+
+        let pathOnly = rawTarget.components(separatedBy: "#").first ?? rawTarget
+        if pathOnly.isEmpty { continue }
+
+        let resolvedURL = baseDir.appendingPathComponent(pathOnly).standardized
+        if !fileManager.fileExists(atPath: resolvedURL.path) {
+            brokenLinks.append(rawTarget)
+        }
+    }
+
+    if !brokenLinks.isEmpty {
+        for broken in brokenLinks {
+            result.errors.append("[\(skillName)] Broken relative link in \(fileLabel): '\(broken)'")
+        }
+    } else {
+        result.passed.append("[\(skillName)] Relative links in \(fileLabel) are valid")
+    }
+}
+
 func validateReferences(in path: URL, skillName: String, result: inout ValidationResult) {
     let fileManager = FileManager.default
+    let refDir = path.appendingPathComponent("references")
 
     guard let referencesPath = try? fileManager.contentsOfDirectory(
-        at: path.appendingPathComponent("references"),
+        at: refDir,
         includingPropertiesForKeys: nil
     ) else {
         result.passed.append("[\(skillName)] No references directory (optional)")
         return
     }
 
-    for ref in referencesPath {
+    for ref in referencesPath.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+        if ref.lastPathComponent.hasPrefix(".") { continue }
         var isDir: ObjCBool = false
         if fileManager.fileExists(atPath: ref.path, isDirectory: &isDir), isDir.boolValue {
             result.errors.append("[\(skillName)] References directory contains subdirectory: \(ref.lastPathComponent) (should be flat)")
+        } else if ref.pathExtension.lowercased() == "md",
+                  let refContent = try? String(contentsOf: ref, encoding: .utf8) {
+            validateRelativeLinks(
+                in: refContent,
+                baseDir: refDir,
+                fileLabel: "references/\(ref.lastPathComponent)",
+                skillName: skillName,
+                result: &result
+            )
         }
     }
 

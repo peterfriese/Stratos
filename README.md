@@ -1,7 +1,7 @@
 # Stratos
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-0a0a0a?labelColor=000000)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1-0a0a0a?labelColor=000000)](stratos-core/SKILL.md)
+[![Version](https://img.shields.io/badge/version-1.2-0a0a0a?labelColor=000000)](stratos-core/SKILL.md)
 [![skills.sh](https://skills.sh/b/peterfriese/Stratos)](https://skills.sh/peterfriese/Stratos)
 
 AI Agent Skills for High-End API Design following the principle of Progressive Disclosure.
@@ -57,16 +57,14 @@ See [stratos-core/SKILL.md](stratos-core/SKILL.md) for the full methodology.
 - **stratos-swiftui**: When building reusable SwiftUI components, ViewModifiers, or custom Styles
 - **stratos-swift**: When creating Swift libraries, SDKs, or implementing Swift 6 concurrency patterns
 
-## What's new in 1.1
+## What's new in 1.2
 
-**2026-07-25:** Aligned stratos-swiftui with Apple's Xcode 27 guidance.
+**2026-10-08:** Comprehensive structural, validation, and Swift 6 / SwiftUI modernization across all three skills.
 
-- `@MainActor` added to `@Observable` examples for Swift 6 concurrency safety
-- Replaced manual `EnvironmentKey` boilerplate with modern `@Entry` macro
-- Replaced deprecated APIs: `.foregroundColor` → `.foregroundStyle`, `.cornerRadius` → `.clipShape(RoundedRectangle(...))`
-- Added rejection criteria for `.if()` conditional modifier anti-pattern
-- Added SDK 27 compatibility notes (`@State` macro migration, `@ContentBuilder` unification)
-- Added `@Animatable` macro and `@Observable`+`Equatable` guidance
+- **stratos-core**: Added cross-domain layer reference (`stratos-core/references/LAYERS.md`), domain-agnostic Layer 1–4 examples (UI + SDK), and an actionable API Review Rubric under `Common Tasks`.
+- **stratos-swiftui**: Fixed `Badge` container pattern with `LocalizedStringKey` convenience init, added `@Bindable` to `@Observable` view models, replaced legacy `.previewLayout` with `#Preview(traits:)`, and added complete custom `CardStyle` / `CardStyleConfiguration` Layer 4 pattern.
+- **stratos-swift**: Added Swift 6 `Mutex` (from `Synchronization`), Typed Throws (`throws(ErrorType)`), `~Copyable` resource handles, in-flight task deduplication in `UserRepository`, flexible `@resultBuilder` DSL, and `: Sendable` DI protocols.
+- **Validation**: Upgraded `scripts/validate-skills.swift` to verify directory-name matching, `metadata.author`/`version`, required section ordering, line-count budgets (350 warning / 500 error), and relative Markdown links.
 
 See [docs/JOURNAL.md](docs/JOURNAL.md) for the full change log.
 

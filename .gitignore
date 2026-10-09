@@ -1,3 +1,12 @@
 .luca/tools
 opencode.jsonc
 xcode-skills/
+node_modules/
+evals/output/
+.promptfoo/
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+
