@@ -1,0 +1,15 @@
+{
+  "name": "stratos-evals",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Promptfoo evaluation suite for Stratos API design skills",
+  "scripts": {
+    "eval": "npx promptfoo@latest eval -c promptfooconfig.yaml",
+    "eval:pro": "npx promptfoo@latest eval -c promptfooconfig.yaml -p vertex:gemini-3.1-pro-preview",
+    "eval:core": "npx promptfoo@latest eval -c promptfooconfig.yaml --filter-metadata skill=stratos-core",
+    "eval:swiftui": "npx promptfoo@latest eval -c promptfooconfig.yaml --filter-metadata skill=stratos-swiftui",
+    "eval:swift": "npx promptfoo@latest eval -c promptfooconfig.yaml --filter-metadata skill=stratos-swift",
+    "eval:view": "npx promptfoo@latest view",
+    "eval:validate": "swift ../scripts/validate-skills.swift .."
+  }
+}

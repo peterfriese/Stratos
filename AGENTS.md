@@ -67,6 +67,21 @@ This validates:
 - Relative Markdown links in `SKILL.md` and `references/*.md`
 - References structure (flat, one level deep)
 
+## Evals (Promptfoo)
+
+To measure skill effectiveness and test changes against regressions, run the Promptfoo suite in `evals/`:
+
+```bash
+cd evals
+npm run eval          # Run all 9 scenarios across Baseline, Standalone, and Full Stratos
+npm run eval:core     # Run stratos-core suite only
+npm run eval:swiftui  # Run stratos-swiftui suite only
+npm run eval:swift    # Run stratos-swift suite only
+npm run eval:view     # Open interactive web matrix
+```
+
+See [evals/README.md](evals/README.md) for provider configuration and custom assertions (`assertCallSiteFirst`, `assertNoInitBloat`).
+
 ## Documentation Rule
 
 **IMPORTANT:** When making changes, always document learnings in `docs/JOURNAL.md`.

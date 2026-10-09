@@ -1,0 +1,111 @@
+# Tests for stratos-swiftui: Reusable Views, @Entry, @MainActor @Observable, @Bindable, and Custom Style Protocols
+
+- description: "[stratos-swiftui] Design a reusable CalloutView across all 4 Stratos layers"
+  metadata:
+    skill: stratos-swiftui
+  vars:
+    skill: stratos-swiftui
+    include_references: true
+    user_prompt: |
+      Design a reusable SwiftUI `CalloutView` component that displays a message with an optional leading icon.
+      Show how it works from simple zero-config usage up to a custom `CalloutStyle` protocol for deep customization, including a modern SwiftUI preview.
+  assert:
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertCallSiteFirst
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertNoInitBloat
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertModernSwiftUICode
+    - type: icontains
+      value: "@Entry"
+    - type: icontains
+      value: "#Preview"
+    - type: llm-rubric
+      value: |
+        The response must:
+        1. Present the ideal Call Site First before the implementation.
+        2. Use `@Entry` inside `extension EnvironmentValues` (and NOT legacy `EnvironmentKey` structs).
+        3. Provide a `@ViewBuilder` initializer and a string convenience initializer without Init-Bloat.
+        4. Implement a `CalloutStyle` protocol and `CalloutStyleConfiguration` for Layer 4 (Thermosphere) customization.
+        5. Use modern SwiftUI APIs (`.foregroundStyle`, `RoundedRectangle`, `#Preview` without `.previewLayout`).
+
+- description: "[stratos-swiftui] Build an @Observable form editor with Swift 6 concurrency and @Bindable"
+  metadata:
+    skill: stratos-swiftui
+  vars:
+    skill: stratos-swiftui
+    include_references: false
+    user_prompt: |
+      Create a SwiftUI `NotificationSettingsView` and its backing `@Observable` view model `NotificationSettingsViewModel`.
+      The parent screen owns the view model and passes it into `NotificationSettingsView`, which needs two-way `$` bindings for a toggle and a text field, plus an async save button.
+  assert:
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertCallSiteFirst
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertModernObservationCode
+    - type: icontains
+      value: "@MainActor"
+    - type: icontains
+      value: "@Observable"
+    - type: icontains
+      value: "@Bindable"
+    - type: llm-rubric
+      value: |
+        The response must:
+        1. Show the call site first (e.g. a parent view or call-site snippet instantiating `NotificationSettingsView(viewModel:)`).
+        2. Annotate `NotificationSettingsViewModel` with both `@MainActor` and `@Observable`.
+        3. Use `@Bindable var viewModel: NotificationSettingsViewModel` in `NotificationSettingsView` so passed-in model properties can bind with `$viewModel`.
+        4. Use modern Observation in the Swift implementation (not legacy `ObservableObject` or `@ObservedObject`).
+
+- description: "[stratos-swiftui] Reject conditional .if() modifier and soft-deprecated SwiftUI APIs"
+  metadata:
+    skill: stratos-swiftui
+  vars:
+    skill: stratos-swiftui
+    include_references: false
+    user_prompt: |
+      Review this SwiftUI view extension and component. Is this a good way to conditionally style views in our component library?
+
+      ```swift
+      extension View {
+          @ViewBuilder
+          func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+              if condition {
+                  transform(self)
+              } else {
+                  self
+              }
+          }
+      }
+
+      struct ActionPill: View {
+          let isHighlighted: Bool
+          let action: () -> Void
+
+          var body: some View {
+              Button(action: action) {
+                  Image(systemName: "bolt.fill")
+              }
+              .padding(8)
+              .foregroundColor(.white)
+              .cornerRadius(12)
+              .if(isHighlighted) { view in
+                  view.shadow(radius: 6)
+              }
+          }
+      }
+      ```
+  assert:
+    - type: icontains
+      value: "identity"
+    - type: icontains
+      value: "foregroundStyle"
+    - type: not-icontains
+      value: "This is a great pattern"
+    - type: llm-rubric
+      value: |
+        The response must explicitly reject the code and fix all 4 issues:
+        1. Reject the conditional `.if()` ViewModifier extension because `@ViewBuilder` `if/else` branches change structural view identity, resetting `@State` and breaking animations. Show how to use an inert/ternary modifier argument instead.
+        2. Replace `.foregroundColor(.white)` with `.foregroundStyle(.white)`.
+        3. Replace `.cornerRadius(12)` with `.clipShape(RoundedRectangle(cornerRadius: 12))` or `.background(..., in: RoundedRectangle(cornerRadius: 12))`.
+        4. Fix the accessibility issue on the icon-only `Button` by adding an accessible title label (e.g., `Button("...", systemImage: "bolt.fill", action: action)` or `Label`).

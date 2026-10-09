@@ -6,6 +6,29 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 ## Implementation Journey
 
+### Entry 15: Promptfoo Evaluation Suite & Multi-Model Benchmark (2026-10-08)
+
+**What changed:**
+- Created `feat/evals` branch off `main` after committing the `v1.2` skill and validation upgrades in 5 atomic commits.
+- Built a [Promptfoo](https://www.promptfoo.dev/) evaluation harness in [`evals/`](evals/README.md):
+  - [`evals/promptfooconfig.yaml`](evals/promptfooconfig.yaml): Configures a 3-way comparison matrix across `1. Baseline (No Skill)`, `2. Domain Skill Only (Standalone)`, and `3. Full Stratos (stratos-core + Domain Skill)` using `vertex:gemini-3-flash-preview` by default (plus `npm run eval:pro` for `vertex:gemini-3.1-pro-preview`).
+  - [`evals/prompts/build-prompt.js`](evals/prompts/build-prompt.js): Dynamically injects `SKILL.md` and `references/LAYERS.md` from the repository based on `vars.skill` and `vars.include_references`.
+  - [`evals/assertions/stratos-assertions.js`](evals/assertions/stratos-assertions.js): Deterministic JavaScript assertions checking uncommented Swift code blocks for `assertCallSiteFirst`, `assertNoInitBloat`, `assertModernSwiftUICode`, `assertModernObservationCode`, and `assertNoNSLockInCode`.
+  - Test suites covering 9 scenarios (27 evaluations per run) across [`evals/tests/core.yaml`](evals/tests/core.yaml), [`evals/tests/swiftui.yaml`](evals/tests/swiftui.yaml), and [`evals/tests/swift.yaml`](evals/tests/swift.yaml).
+- Tightened **Call Site First** across all three `SKILL.md` files (requiring the very first Swift code block to show the call site before any type definitions) and added **Unlabelled Icon-Only Controls (Accessibility)** to `stratos-swiftui/SKILL.md` Rejection Criteria based on initial eval feedback.
+
+**Benchmark results (`vertex:gemini-3-flash-preview`):**
+- **Baseline (No Skill)**: `0 / 9` passed (avg score `0.52`) — endorsed `.if()` conditional modifier anti-pattern, used `NSLock` / `OSAllocatedUnfairLock` instead of `Mutex`, used untyped `throws`, omitted `@Entry`, and placed call sites last.
+- **Domain Skill Only (Standalone)**: `9 / 9` passed (**100%**, avg score `1.00`).
+- **Full Stratos (`stratos-core` + Domain Skill)**: `8 / 9` passed (`89%`, 9th at `0.97`, avg score `1.00`).
+
+**What we learned:**
+- Promptfoo custom JS prompt functions receive test variables via `vars` (`{ vars }`), not `test.metadata`.
+- `gemini-2.5-flash` occasionally gets stuck in an infinite `| :---` Markdown table separator loop on rubric table prompts; `gemini-3-flash-preview`, `gemini-2.5-pro`, and `gemini-3.1-pro-preview` have zero table glitches, with `gemini-3-flash-preview` completing all 27 evaluations in 1m 18s.
+- Deterministic anti-pattern assertions (`not-icontains`) must be scoped to uncommented ````swift` code blocks rather than full Markdown prose—otherwise models get penalized when explaining *why* they avoided `NSLock` or `ObservableObject`.
+
+---
+
 ### Entry 14: Comprehensive Skill Audit, Validation Upgrade & v1.2 Modernization (2026-10-08)
 
 **Problem:**

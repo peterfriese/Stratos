@@ -1,0 +1,76 @@
+# Tests for stratos-swift: Swift 6 Concurrency, Actor Reentrancy, Mutex, Typed Throws, and Result Builders
+
+- description: "[stratos-swift] Implement a reentrancy-safe Actor cache with in-flight request deduplication"
+  metadata:
+    skill: stratos-swift
+  vars:
+    skill: stratos-swift
+    include_references: true
+    user_prompt: |
+      Design a Swift 6 `ProfileLoader` actor for our SDK that fetches `UserProfile` objects from a remote `ProfileTransport` protocol and caches them in memory by `UserProfile.ID`.
+      Ensure that if 5 concurrent callers request the same uncached `UserProfile.ID` at the same time, only 1 network request is made and there are no actor reentrancy bugs.
+  assert:
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertCallSiteFirst
+    - type: icontains
+      value: "actor "
+    - type: icontains
+      value: "Sendable"
+    - type: icontains
+      value: "Task<"
+    - type: llm-rubric
+      value: |
+        The response must:
+        1. Show the ideal Call Site First before the implementation.
+        2. Define `ProfileTransport` as conforming to `Sendable` (`protocol ProfileTransport: Sendable`).
+        3. Implement `ProfileLoader` as an `actor` that tracks both cached values and in-flight `Task` instances so concurrent requests for the same ID await the existing in-flight task rather than firing duplicate requests across the `await` suspension point.
+        4. Properly clean up the in-flight task entry on both success and error.
+
+- description: "[stratos-swift] Synchronous thread-safe counter and closed-domain error validation in Swift 6"
+  metadata:
+    skill: stratos-swift
+  vars:
+    skill: stratos-swift
+    include_references: false
+    user_prompt: |
+      We are writing a Swift 6 telemetry SDK and need two components:
+      1. `EventQuotaTracker`: A synchronous, thread-safe class that tracks remaining quota (`tryConsume(_ count: Int)` and `remaining: Int`) without requiring `async`/`await` at the call site.
+      2. `QuotaError`: A closed set of failure reasons (`exceeded(limit: Int)`, `invalidAmount`) thrown by `tryConsume(_:)` so callers get exhaustive compile-time error checking in `catch` blocks.
+  assert:
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertCallSiteFirst
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertNoNSLockInCode
+    - type: icontains
+      value: "Mutex"
+    - type: icontains
+      value: "throws(QuotaError)"
+    - type: llm-rubric
+      value: |
+        The response must:
+        1. Show the ideal Call Site First.
+        2. Use Swift 6 `Mutex` from the `Synchronization` framework in the implementation (not `NSLock`).
+        3. Use Swift 6 Typed Throws (`throws(QuotaError)`) on `tryConsume` so callers get exhaustive `QuotaError` handling.
+
+- description: "[stratos-swift] Design a flexible @resultBuilder DSL supporting optional and reordered components"
+  metadata:
+    skill: stratos-swift
+  vars:
+    skill: stratos-swift
+    include_references: false
+    user_prompt: |
+      Design a declarative `@resultBuilder` API for constructing a `QueryFilter` in a Swift database SDK.
+      Callers should be able to combine `.whereEquals(field, value)`, `.limit(count)`, and `.sortBy(field, order)` in any order, and optionally include a clause inside an `if` block.
+  assert:
+    - type: javascript
+      value: file://assertions/stratos-assertions.js:assertCallSiteFirst
+    - type: icontains
+      value: "@resultBuilder"
+    - type: icontains
+      value: "buildOptional"
+    - type: llm-rubric
+      value: |
+        The response must:
+        1. Show the ideal Call Site First, including an `if` condition inside the builder closure.
+        2. Use semantic enums (e.g. `SortOrder` with `.ascending` / `.descending` rather than a boolean `ascending: Bool` trap).
+        3. Implement `@resultBuilder` with `buildBlock`, `buildExpression` (or a unified component enum), `buildOptional`, and `buildEither` so components can appear in any order and inside conditionals.
