@@ -26,6 +26,10 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 - Promptfoo custom JS prompt functions receive test variables via `vars` (`{ vars }`), not `test.metadata`.
 - `gemini-2.5-flash` occasionally gets stuck in an infinite `| :---` Markdown table separator loop on rubric table prompts; `gemini-3-flash-preview`, `gemini-2.5-pro`, and `gemini-3.1-pro-preview` have zero table glitches, with `gemini-3-flash-preview` completing all 27 evaluations in 1m 18s.
 - Deterministic anti-pattern assertions (`not-icontains`) must be scoped to uncommented ````swift` code blocks rather than full Markdown prose—otherwise models get penalized when explaining *why* they avoided `NSLock` or `ObservableObject`.
+- Two rounds of read-only GitHub Copilot code review on PR #1 caught subtle edge cases in both our evaluation assertions and Swift code snippets:
+  - Regex `init\(([^)]*)\)` truncates parameter lists containing closure types (`() -> Void`) or default initializers (`Color(.secondarySystemBackground)`); replacing it with a balanced-parenthesis scanner (`extractInitParameterLists`) properly inspects all parameters.
+  - `assertCallSiteFirst` must include `enum`, `extension`, `func`, and `typealias` in its declaration detector and verify positive call-expression evidence so declaration-only blocks are never mistaken for call sites.
+  - Public structs in Swift library examples (`StubHTTPTransport`) always need an explicit `public init(...)` because Swift's synthesized memberwise initializer is `internal` by default.
 
 ---
 

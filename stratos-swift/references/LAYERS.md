@@ -137,7 +137,12 @@ public struct UserService: Sendable {
 // Thread-safe test double using an actor or immutable stub:
 public struct StubHTTPTransport: HTTPTransport {
     public var responseData: Data
-    public var statusCode: Int = 200
+    public var statusCode: Int
+
+    public init(responseData: Data, statusCode: Int = 200) {
+        self.responseData = responseData
+        self.statusCode = statusCode
+    }
 
     public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let response = HTTPURLResponse(

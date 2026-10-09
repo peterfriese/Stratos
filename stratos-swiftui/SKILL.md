@@ -163,7 +163,7 @@ struct ProfileEditorView: View {
 }
 ```
 
-> **Performance tip:** When an `@Observable` class stores properties of custom value types, ensure those types conform to `Equatable`. This allows Observation to short-circuit redundant view invalidations when a property is reassigned an equal value.
+> **Performance tip:** Conforming custom value types to `Equatable` lets SwiftUI skip re-evaluating subview bodies when those values are passed as view inputs, and lets `@Observable` models guard against redundant `ObservationRegistrar` notifications (`guard newValue != oldValue`).
 
 ---
 
@@ -237,11 +237,11 @@ When building a reusable component that requires deep visual customization, defi
 
 ```swift
 // CALL SITE:
-Card {
-    Text("Revenue")
-}
-.cardStyle(.elevated)               // Built-in style via static member lookup
-.cardStyle(BorderedCardStyle())     // Custom third-party style
+Card { Text("Revenue") }
+    .cardStyle(.elevated)           // Built-in style via static member lookup
+
+Card { Text("Details") }
+    .cardStyle(BorderedCardStyle()) // Custom third-party style
 
 // IMPLEMENTATION:
 struct CardStyleConfiguration {

@@ -65,9 +65,9 @@ function assertCallSiteFirst(output) {
 
   const hasExplicitCallSiteHeader = /(?:###?\s*.*(?:call\s*site|ideal\s*usage|layer\s*1)|\/\/\s*(?:MARK:\s*-\s*)?(?:1\.\s*)?(?:ideal\s+)?(?:call\s*site|usage|layer\s*1|troposphere|step\s*1))/i.test(textBeforeEndOfFirstBlock);
 
-  // Include `enum` and `extension` alongside `struct`, `class`, `actor`, `protocol` so an enum/extension-only
-  // implementation block is not mistaken for a call site.
-  const typeDeclRegex = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol|enum|extension)\s+(\w+)/gm;
+  // Include `enum`, `extension`, `func`, and `typealias` alongside `struct`, `class`, `actor`, `protocol`
+  // so declaration-only implementation blocks are not mistaken for a call site.
+  const typeDeclRegex = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol|enum|extension|func|typealias)\s+(\w+)/gm;
   const declaredTypesInFirstBlock = [...firstBlockUncommented.matchAll(typeDeclRegex)].map(m => m[1]);
 
   // Require positive evidence of a call/invocation or initialization in the first block when no types are declared
@@ -95,7 +95,7 @@ function assertCallSiteFirst(output) {
   // Single block or multi-block that starts with a `// CALL SITE` section before the first type declaration
   const callSiteCommentRegex = new RegExp('//\\s*(?:MARK:\\s*-\\s*)?(?:1\\.\\s*)?(?:ideal\\s+)?(?:call\\s*site|usage|layer\\s*1|troposphere|step\\s*1)', 'i');
   const callSiteCommentMatch = callSiteCommentRegex.exec(firstBlock.raw);
-  const firstTypeMatch = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol|enum|extension)\s+\w+/m.exec(firstBlock.raw);
+  const firstTypeMatch = /^\s*(?:public\s+|internal\s+|private\s+|final\s+|@\w+(?:\([^)]*\))?\s+)*(?:struct|class|actor|protocol|enum|extension|func|typealias)\s+\w+/m.exec(firstBlock.raw);
   if (callSiteCommentMatch && firstTypeMatch && callSiteCommentMatch.index < firstTypeMatch.index) {
     return {
       pass: true,
@@ -188,6 +188,16 @@ function assertModernObservationCode(output) {
         pass: false,
         score: 0,
         reason: `Found legacy Combine observation API '${token}' in Swift code.`
+      };
+    }
+  }
+  const required = ['@Observable', '@Bindable'];
+  for (const token of required) {
+    if (!swiftCode.includes(token)) {
+      return {
+        pass: false,
+        score: 0,
+        reason: `Expected '${token}' in uncommented Swift code blocks.`
       };
     }
   }
