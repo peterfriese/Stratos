@@ -32,10 +32,10 @@ Activate `stratos-swift` when:
 
 ### 1. Call Site First
 
-**Before implementing, write the intended API across progressive layers:**
+**Your VERY FIRST Swift code block MUST show the intended call site — never define error enums, protocols, structs, or actors before the call site block, and never defer usage examples to the end of your response:**
 
 ```swift
-// IDEAL CALL SITE (design this first):
+// IDEAL CALL SITE (must be the FIRST code block in your response):
 // Layer 1 (Troposphere): Zero-config default
 let client = HTTPClient(baseURL: apiURL)
 let users: [User] = try await client.get("/users")

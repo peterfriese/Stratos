@@ -118,15 +118,15 @@ let client = HTTPClient(baseURL: apiURL, middlewares: [HmacSigningMiddleware(key
 
 #### 1. Call Site First
 
-**Rule**: Always write the ideal code at the point of use (the Call Site) before writing any implementation.
+**Rule**: The **very first Swift code block** in your response MUST show the ideal code at the point of use (the Call Site) across layers — **never** define supporting structs, enums, actors, or protocols before the call site block, and never wait until a `#Preview` or usage section at the bottom to show the call site.
 
 ```swift
-// STEP 1 — Design the ideal call site first:
+// STEP 1 — Your FIRST code block MUST be the ideal call site:
 let report = try await AnalyticsReport("Q3 Revenue")
-    .ComparisonPeriod(.previousQuarter)
+    .comparisonPeriod(.previousQuarter)
     .export(as: .pdf)
 
-// STEP 2 — Implement the types and methods to make that call site compile.
+// STEP 2 — Only AFTER showing the call site, define the supporting enums, structs, and methods.
 ```
 
 **Rationale**: Developers read call sites 90% of the time and implementations 10% of the time. If the call site is awkward, the API design is wrong.

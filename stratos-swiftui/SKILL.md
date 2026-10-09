@@ -34,10 +34,10 @@ Activate `stratos-swiftui` when:
 
 ### 1. Call Site First
 
-**Before writing any implementation, show the intended usage across layers:**
+**Your VERY FIRST Swift code block MUST show the intended call site across layers — never define supporting structs, enums, view models, or style protocols before showing the call site, and never defer the call site to `#Preview` at the end.**
 
 ```swift
-// IDEAL CALL SITE (design this first):
+// IDEAL CALL SITE (must be the FIRST code block in your response):
 Card {
     Label("Release Notes", systemImage: "sparkles")
     Text("Aligned with modern SwiftUI ergonomics.")
@@ -45,7 +45,7 @@ Card {
 .cardStyle(.elevated)
 .cardElevation(.raised)
 
-// THEN implement the view, modifiers, and style protocol to support this API.
+// THEN implement the view, modifiers, and style protocol in subsequent code blocks.
 ```
 
 **Why**: The call site is what developers read 90% of the time. If it feels awkward at the point of use, the component API is wrong.
@@ -332,6 +332,7 @@ In addition to the core rejections in [stratos-core/SKILL.md](../stratos-core/SK
 - **Conditional `.if()` ViewModifier Extensions**: `@ViewBuilder` extensions like `.if(condition) { $0.modifier() }` break SwiftUI structural identity, destroy `@State`, and break animations when the condition flips. Pass conditional values into the modifier instead (e.g., `.opacity(isHidden ? 0 : 1)`).
 - **Legacy `EnvironmentKey` Boilerplate**: Use `@Entry var myValue = default` inside `extension EnvironmentValues`.
 - **Soft-Deprecated Modifiers**: Reject `.foregroundColor()`, `.cornerRadius()`, `NavigationView`, and `.previewLayout()`.
+- **Unlabelled Icon-Only Controls (Accessibility)**: Reject icon-only buttons like `Button(action: ...) { Image(systemName: "...") }` that lack an accessible VoiceOver title. Replace with `Button("Action Title", systemImage: "...", action: ...)` or `Label("Action Title", systemImage: "...")`.
 - **Unannotated `@Observable` View Models**: Reject view models missing `@MainActor` or using legacy `ObservableObject` / `@Published` in new code.
 
 ---
