@@ -55,10 +55,12 @@ metadata:
 **Always run validation before committing:**
 
 ```bash
-swift scripts/validate-skills.swift
+just validate                              # Or: swift scripts/validate-skills.swift
+just validate-quick                        # Or: swift scripts/validate-skills.swift --skip-snippets
+just verify-snippets                       # Or: swift scripts/verify-snippets.swift
 ```
 
-This validates:
+By default, `validate-skills.swift` (and `just validate`) runs **both** structural checks and Swift 6 snippet compilation:
 - YAML frontmatter format (`name`, `description`, `metadata.author`, `metadata.version`)
 - Name format (lowercase, hyphens, max 64 chars, matches parent directory)
 - Description length (1-1024 chars)
@@ -66,18 +68,19 @@ This validates:
 - Line count budget (warns at >350 lines, errors at >500 lines)
 - Relative Markdown links in `SKILL.md` and `references/*.md`
 - References structure (flat, one level deep)
+- Swift 6 compilation (`swiftc -typecheck -swift-version 6`) of all standalone Swift scripts in `scripts/` and all 48 ```` ```swift ```` code blocks across `stratos-*/SKILL.md`, `stratos-*/references/LAYERS.md`, and `evals/tests/*.yaml` (via `scripts/verify-snippets.swift`)
 
 ## Evals (Promptfoo)
 
-To measure skill effectiveness and test changes against regressions, run the Promptfoo suite in `evals/`:
+To measure skill effectiveness and test changes against regressions, run the Promptfoo suite via `just` (or `npm` in `evals/`):
 
 ```bash
-cd evals
-npm run eval          # Run all 9 scenarios across Baseline, Standalone, and Full Stratos
-npm run eval:core     # Run stratos-core suite only
-npm run eval:swiftui  # Run stratos-swiftui suite only
-npm run eval:swift    # Run stratos-swift suite only
-npm run eval:view     # Open interactive web matrix
+just eval             # Run all 9 scenarios across Baseline, Standalone, and Full Stratos
+just eval-core        # Run stratos-core suite only
+just eval-swiftui     # Run stratos-swiftui suite only
+just eval-swift       # Run stratos-swift suite only
+just eval-pro         # Evaluate against Gemini Pro
+just eval-view        # Open interactive web matrix
 ```
 
 See [evals/README.md](evals/README.md) for provider configuration and custom assertions (`assertCallSiteFirst`, `assertNoInitBloat`).
@@ -138,7 +141,7 @@ Two providers are configured in `opencode.jsonc`:
 |-------|-------|------|---------|
 | **skill-architect** | Go / DeepSeek V4 Flash | $10/mo (Go sub) | Scaffold new skills, validate structure, naming, frontmatter |
 | **content-writer** | Go / DeepSeek V4 Flash | $10/mo (Go sub) | Write/edit SKILL.md content following Stratos methodology |
-| **validator** | Go / DeepSeek V4 Flash | $10/mo (Go sub) | Run `validate-skills.swift`, fix compliance issues |
+| **validator** | Go / DeepSeek V4 Flash | $10/mo (Go sub) | Run `validate-skills.swift` and `verify-snippets.swift`, fix compliance issues |
 | **reviewer** | Go / DeepSeek V4 Pro | $1.74/$3.48 per 1M | Deep quality review of skill accuracy and consistency |
 | **journalist** | Go / DeepSeek V4 Flash | $10/mo (Go sub) | Maintain `docs/JOURNAL.md` with change records |
 
@@ -160,7 +163,8 @@ Before executing ANY implementation task, you MUST:
 
 ### 2. Validation Discipline
 
-- NEVER claim validation passes without actually running `swift scripts/validate-skills.swift`
+- NEVER claim validation passes without actually running both `swift scripts/validate-skills.swift` and `swift scripts/verify-snippets.swift`
+- Verify that all Swift/SwiftUI code snippets in `SKILL.md` and `references/LAYERS.md` compile cleanly under Swift 6 via `swift scripts/verify-snippets.swift`
 - If the same validation issue persists after 2 fix attempts, STOP and ask the user for strategy
 - Run validation BEFORE and AFTER any skill changes
 

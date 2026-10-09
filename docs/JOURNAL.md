@@ -6,6 +6,30 @@ A chronological record of building the Stratos skills - decisions, discoveries, 
 
 ## Implementation Journey
 
+### Entry 16: Compiler Verification of All Swift & SwiftUI Code Snippets (2026-10-09)
+
+**Problem:**
+Extracting and compiling all 48 Markdown/YAML ````swift` code blocks across the repository with `swiftc -typecheck -swift-version 6` revealed 3 compiler errors and 1 warning:
+1. **`stratos-swift/SKILL.md` (`RequestBuilder` call site)**: Consecutive lines starting with a leading dot (`.method(.post)` followed by `.header("Accept", "application/json")` and `.timeout(.seconds(30))`) inside a `@resultBuilder` closure are parsed by Swift's grammar as postfix member chaining on the first expression (`error: enum case 'header' cannot be used as an instance member`) rather than separate builder statements.
+2. **`stratos-swiftui/SKILL.md` (`BadgeProminence`)**: SwiftUI (iOS 17+ / macOS 14+) already defines `SwiftUI.BadgeProminence` (with `.standard` and `.increased`) and `View.badgeProminence(_:)`. Defining a custom `enum BadgeProminence { case standard, increased }` and `View.badgeProminence(_:)` causes `error: ambiguous use of 'increased'` at every `.badgeProminence(.increased)` call site.
+3. **`stratos-swiftui/SKILL.md` (`CardTheme.standard`)**: `Color(.secondarySystemBackground)` fails to compile without a `UIColor` contextual type (`error: reference to member 'secondarySystemBackground' cannot be resolved without a contextual type`) and is unavailable on macOS.
+4. **`stratos-swiftui/SKILL.md` (`UserViewModel.saveProfile`)**: `defer { isSaving = false }` followed only by a comment triggered `warning: 'defer' statement at end of scope always executes immediately`.
+
+**Fix:**
+- Updated the `RequestBuilder` snippet in `stratos-swift/SKILL.md` to use declarative builder functions (`Method(.post)`, `Header("Accept", "application/json")`, `BearerToken(token)`, `Timeout(.seconds(30))`) returning `RequestComponent`, included `HTTPRequest`, and replaced the `...` placeholder in `validate(_:)` with `return Claims(rawToken: token)` so all 8 blocks in `stratos-swift/SKILL.md` compile verbatim.
+- Changed the custom `BadgeProminence` case in `stratos-swiftui/SKILL.md` and `stratos-swiftui/references/LAYERS.md` from `.increased` to `.prominent` (`case standard, prominent`), resolving overload ambiguity against `SwiftUI.BadgeProminence` while preserving the `.badgeProminence(_:)` teaching pattern.
+- Replaced `Color(.secondarySystemBackground)` with cross-platform `Color.secondary.opacity(0.12)` in `CardTheme.standard`, and added `try? await Task.sleep(for: .milliseconds(300))` in `UserViewModel.saveProfile()`.
+- Added `scripts/verify-snippets.swift` to dynamically discover, extract, and concurrently typecheck all standalone Swift scripts (`scripts/*.swift`) and all 48 Markdown/YAML ````swift` code blocks (`stratos-*/SKILL.md`, `stratos-*/references/*.md`, `evals/tests/*.yaml`) under Swift 6 (`swiftc -typecheck -swift-version 6`), integrated it into `scripts/validate-skills.swift` by default (following Progressive Disclosure with `--skip-snippets`, `--snippets-only`, and `--help` flags), added a root `justfile` (`just validate`, `just validate-quick`, `just verify-snippets`, `just eval*`, `just eval-setup`, `just check-discovery`, `just clean`), and documented the workflow in `AGENTS.md` and `CONTRIBUTING.md`.
+- Pressure-tested `justfile`, `scripts/validate-skills.swift`, and `scripts/verify-snippets.swift` to support targeting individual skills or files (`just validate stratos-swiftui`, `just verify-snippets stratos-swift/SKILL.md`), resolve `verify-snippets.swift` via `#filePath`, reject unknown CLI flags, fail when 0 skills/snippets are found, and auto-install `evals/node_modules` via `eval-setup`.
+
+**What we learned:**
+- In Swift's parser, leading-dot expressions on consecutive lines are always parsed as postfix continuation chains—never use bare leading-dot enum cases as consecutive statements inside a `@resultBuilder` block.
+- Custom SwiftUI view modifiers and environment types in skill examples must avoid colliding with symbols introduced in newer Apple SDKs (such as `SwiftUI.BadgeProminence`).
+- Automating snippet extraction and Swift 6 typechecking in `scripts/verify-snippets.swift` (and running it by default via `swift scripts/validate-skills.swift` / `just validate`) catches subtle parser and SDK overload regressions in an agent-agnostic way without shadowing `stratos-*` skill discovery in `.agents/skills/`.
+- Always pressure-test validation scripts against single-skill directories, single files, empty directories, and typo flags—resolving sibling scripts via `#filePath` and dynamically discovering skill/reference/eval files prevents silent zero-item passes.
+
+---
+
 ### Entry 15: Promptfoo Evaluation Suite & Multi-Model Benchmark (2026-10-08)
 
 **What changed:**
@@ -342,6 +366,7 @@ Stratos/
 ├── CONTRIBUTING.md            # Contribution guidelines
 ├── README.md                  # Project overview
 ├── AGENTS.md                  # Development guidance for AI agents
+├── justfile                   # Agent-agnostic task runner recipes
 ├── opencode.example.jsonc     # Example OpenCode fleet config
 ├── .opencode/
 │   └── agents/                # Chief of Staff & subagent definitions
@@ -357,16 +382,18 @@ Stratos/
 │   ├── SKILL.md               # Swift skill (v1.2)
 │   └── references/
 │       └── LAYERS.md          # Detailed Swift SDK layer guidance
+├── evals/                     # Promptfoo evaluation suite
 ├── docs/
 │   └── JOURNAL.md             # Implementation journey
 └── scripts/
-    └── validate-skills.swift  # Validation script
+    ├── validate-skills.swift  # Structural & snippet validation script
+    └── verify-snippets.swift  # Swift 6 code snippet typechecker
 ```
 
 ---
 
 ## Future Work
 
-- [ ] Run evals comparing orthogonal vs embedded stratos-core
+- [x] Run evals comparing orthogonal vs embedded stratos-core
 - [ ] Create Swift package for common utilities
 - [ ] Consider adding TypeScript/React skill following same pattern
